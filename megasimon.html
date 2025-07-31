@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Simon Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            touch-action: manipulation;
+        }
+        .simon-container {
+            width: 90vw;
+            height: 90vw;
+            max-width: 600px;
+            max-height: 600px;
+        }
+        .simon-pad {
+            transition: background-color 0.1s ease-in-out, transform 0.1s ease-in-out;
+            border: 4px solid #111827;
+        }
+        .simon-pad:active {
+            transform: scale(0.95);
+        }
+        .simon-pad.lit {
+            filter: brightness(2.5);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+            z-index: 10;
+        }
+        
+        /* Color Palette */
+        .c1 { background-color: #ef4444; } /* red */
+        .c2 { background-color: #f97316; } /* orange */
+        .c3 { background-color: #eab308; } /* yellow */
+        .c4 { background-color: #84cc16; } /* lime */
+        .c5 { background-color: #22c55e; } /* green */
+        .c6 { background-color: #10b981; } /* emerald */
+        .c7 { background-color: #14b8a6; } /* teal */
+        .c8 { background-color: #06b6d4; } /* cyan */
+        .c9 { background-color: #3b82f6; } /* blue */
+        .c10 { background-color: #6366f1; } /* indigo */
+        .c11 { background-color: #8b5cf6; } /* violet */
+        .c12 { background-color: #a855f7; } /* purple */
+        .c13 { background-color: #d946ef; } /* fuchsia */
+        .c14 { background-color: #ec4899; } /* pink */
+        .c15 { background-color: #f43f5e; } /* rose */
+        .c16 { background-color: #ffffff; } /* white */
+
+    </style>
+</head>
+<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen text-white p-4">
+
+    <h1 class="text-3xl md:text-4xl mb-4">Mega Simon</h1>
+
+    <div class="simon-container grid grid-cols-4 grid-rows-4 gap-2 p-2 bg-black rounded-lg shadow-2xl">
+        <!-- Row 1 -->
+        <div id="c1" class="simon-pad c1 cursor-pointer rounded-lg"></div>
+        <div id="c2" class="simon-pad c2 cursor-pointer rounded-lg"></div>
+        <div id="c3" class="simon-pad c3 cursor-pointer rounded-lg"></div>
+        <div id="c4" class="simon-pad c4 cursor-pointer rounded-lg"></div>
+        <!-- Row 2 -->
+        <div id="c5" class="simon-pad c5 cursor-pointer rounded-lg"></div>
+        <div id="c6" class="simon-pad c6 cursor-pointer rounded-lg"></div>
+        <div id="c7" class="simon-pad c7 cursor-pointer rounded-lg"></div>
+        <div id="c8" class="simon-pad c8 cursor-pointer rounded-lg"></div>
+        <!-- Row 3 -->
+        <div id="c9" class="simon-pad c9 cursor-pointer rounded-lg"></div>
+        <div id="c10" class="simon-pad c10 cursor-pointer rounded-lg"></div>
+        <div id="c11" class="simon-pad c11 cursor-pointer rounded-lg"></div>
+        <div id="c12" class="simon-pad c12 cursor-pointer rounded-lg"></div>
+        <!-- Row 4 -->
+        <div id="c13" class="simon-pad c13 cursor-pointer rounded-lg"></div>
+        <div id="c14" class="simon-pad c14 cursor-pointer rounded-lg"></div>
+        <div id="c15" class="simon-pad c15 cursor-pointer rounded-lg"></div>
+        <div id="c16" class="simon-pad c16 cursor-pointer rounded-lg"></div>
+    </div>
+
+    <div class="mt-4 w-full max-w-md flex items-center justify-between bg-gray-800 p-4 rounded-lg">
+        <div class="text-center">
+            <p class="text-lg">Score</p>
+            <div id="score-display" class="text-3xl font-bold text-white">00</div>
+        </div>
+        <div class="text-center">
+             <div id="message-display" class="text-sm text-center mb-2 h-5">Press Start</div>
+            <button id="start-button" class="px-6 py-3 bg-blue-600 rounded-lg text-lg hover:bg-blue-500 transition-colors">Start</button>
+        </div>
+        <div class="text-center">
+            <p class="text-lg">High Score</p>
+            <p id="high-score-display" class="text-3xl font-bold">00</p>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const padsElements = {};
+        for (let i = 1; i <= 16; i++) {
+            padsElements[`c${i}`] = document.getElementById(`c${i}`);
+        }
+
+        const startButton = document.getElementById('start-button');
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const messageDisplay = document.getElementById('message-display');
+
+        // Game Variables
+        const pads = {
+            c1: { element: padsElements.c1, note: 'C4' }, c2: { element: padsElements.c2, note: 'D4' },
+            c3: { element: padsElements.c3, note: 'E4' }, c4: { element: padsElements.c4, note: 'F4' },
+            c5: { element: padsElements.c5, note: 'G4' }, c6: { element: padsElements.c6, note: 'A4' },
+            c7: { element: padsElements.c7, note: 'B4' }, c8: { element: padsElements.c8, note: 'C5' },
+            c9: { element: padsElements.c9, note: 'D5' }, c10: { element: padsElements.c10, note: 'E5' },
+            c11: { element: padsElements.c11, note: 'F5' }, c12: { element: padsElements.c12, note: 'G5' },
+            c13: { element: padsElements.c13, note: 'A5' }, c14: { element: padsElements.c14, note: 'B5' },
+            c15: { element: padsElements.c15, note: 'C6' }, c16: { element: padsElements.c16, note: 'D6' },
+        };
+        const colorKeys = Object.keys(pads);
+
+        let sequence = [];
+        let playerSequence = [];
+        let score = 0;
+        let highScore = localStorage.getItem('megaSimonHighScore') || 0;
+        let isPlayerTurn = false;
+        let gameInProgress = false;
+        let synth;
+
+        // --- Sound Synthesis ---
+        function setupSound() {
+            if (!synth) {
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.2 }
+                }).toDestination();
+            }
+        }
+
+        // --- Game Logic ---
+        window.onload = () => {
+            highScoreDisplay.textContent = highScore.toString().padStart(2, '0');
+            startButton.addEventListener('click', startGame);
+            Object.values(pads).forEach(pad => {
+                const colorId = pad.element.id;
+                pad.element.addEventListener('mousedown', () => handlePadClick(colorId));
+                pad.element.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handlePadClick(colorId);
+                }, { passive: false });
+            });
+        };
+
+        function startGame() {
+            if (gameInProgress) return;
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
+            setupSound();
+            gameInProgress = true;
+            sequence = [];
+            score = 0;
+            updateScoreDisplay();
+            messageDisplay.textContent = "Watch...";
+            startButton.disabled = true;
+            startButton.classList.add('opacity-50', 'cursor-not-allowed');
+            setTimeout(nextRound, 1000);
+        }
+
+        function nextRound() {
+            isPlayerTurn = false;
+            playerSequence = [];
+            messageDisplay.textContent = "Watch...";
+
+            const randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
+            sequence.push(randomColor);
+            score = sequence.length - 1;
+            updateScoreDisplay();
+
+            playSequence();
+        }
+
+        async function playSequence() {
+            const delay = Math.max(100, 400 - (sequence.length * 5));
+            await new Promise(resolve => setTimeout(resolve, 700));
+
+            for (const color of sequence) {
+                await flashPad(color, delay);
+                await new Promise(resolve => setTimeout(resolve, delay / 2));
+            }
+            isPlayerTurn = true;
+            messageDisplay.textContent = "Your Turn!";
+        }
+
+        function handlePadClick(color) {
+            if (!isPlayerTurn || !gameInProgress) return;
+
+            flashPad(color, 150);
+            playerSequence.push(color);
+            checkPlayerInput();
+        }
+
+        function checkPlayerInput() {
+            const currentStep = playerSequence.length - 1;
+
+            if (playerSequence[currentStep] !== sequence[currentStep]) {
+                gameOver("Wrong!");
+                return;
+            }
+
+            if (playerSequence.length === sequence.length) {
+                isPlayerTurn = false;
+                messageDisplay.textContent = "Correct!";
+                setTimeout(nextRound, 1200);
+            }
+        }
+        
+        function flashPad(color, duration) {
+            return new Promise(resolve => {
+                const pad = pads[color];
+                if (!pad) return resolve();
+
+                pad.element.classList.add('lit');
+                if (synth) {
+                    synth.triggerAttackRelease(pad.note, '8n', Tone.now());
+                }
+
+                setTimeout(() => {
+                    pad.element.classList.remove('lit');
+                    resolve();
+                }, duration);
+            });
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = score.toString().padStart(2, '0');
+            if (score > highScore) {
+                highScore = score;
+                highScoreDisplay.textContent = highScore.toString().padStart(2, '0');
+                localStorage.setItem('megaSimonHighScore', highScore);
+            }
+        }
+
+        async function gameOver(message) {
+            isPlayerTurn = false;
+            gameInProgress = false;
+            messageDisplay.textContent = message;
+
+            if (synth) {
+                synth.triggerAttackRelease(['C2', 'E2', 'G2'], '4n');
+            }
+            
+            const mainContainer = document.querySelector('.simon-container');
+            mainContainer.classList.add('animate-pulse');
+
+            setTimeout(() => {
+                mainContainer.classList.remove('animate-pulse');
+                messageDisplay.textContent = "Game Over";
+                setTimeout(() => {
+                    messageDisplay.textContent = "Press Start";
+                    startButton.disabled = false;
+                    startButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                }, 2000);
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
