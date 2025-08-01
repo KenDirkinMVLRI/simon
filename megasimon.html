@@ -56,22 +56,19 @@
     <h1 class="text-3xl md:text-4xl mb-4">Mega Simon</h1>
 
     <div class="simon-container grid grid-cols-4 grid-rows-4 gap-2 p-2 bg-black rounded-lg shadow-2xl">
-        <!-- Row 1 -->
+        <!-- Rows of pads -->
         <div id="c1" class="simon-pad c1 cursor-pointer rounded-lg"></div>
         <div id="c2" class="simon-pad c2 cursor-pointer rounded-lg"></div>
         <div id="c3" class="simon-pad c3 cursor-pointer rounded-lg"></div>
         <div id="c4" class="simon-pad c4 cursor-pointer rounded-lg"></div>
-        <!-- Row 2 -->
         <div id="c5" class="simon-pad c5 cursor-pointer rounded-lg"></div>
         <div id="c6" class="simon-pad c6 cursor-pointer rounded-lg"></div>
         <div id="c7" class="simon-pad c7 cursor-pointer rounded-lg"></div>
         <div id="c8" class="simon-pad c8 cursor-pointer rounded-lg"></div>
-        <!-- Row 3 -->
         <div id="c9" class="simon-pad c9 cursor-pointer rounded-lg"></div>
         <div id="c10" class="simon-pad c10 cursor-pointer rounded-lg"></div>
         <div id="c11" class="simon-pad c11 cursor-pointer rounded-lg"></div>
         <div id="c12" class="simon-pad c12 cursor-pointer rounded-lg"></div>
-        <!-- Row 4 -->
         <div id="c13" class="simon-pad c13 cursor-pointer rounded-lg"></div>
         <div id="c14" class="simon-pad c14 cursor-pointer rounded-lg"></div>
         <div id="c15" class="simon-pad c15 cursor-pointer rounded-lg"></div>
@@ -143,9 +140,11 @@
             startButton.addEventListener('click', startGame);
             Object.values(pads).forEach(pad => {
                 const colorId = pad.element.id;
+                // Use mousedown for quicker response than click
                 pad.element.addEventListener('mousedown', () => handlePadClick(colorId));
+                // Add touchstart for mobile devices
                 pad.element.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
+                    e.preventDefault(); // Prevent ghost clicks on mobile
                     handlePadClick(colorId);
                 }, { passive: false });
             });
@@ -153,6 +152,7 @@
 
         function startGame() {
             if (gameInProgress) return;
+            // Tone.js requires a user interaction to start the audio context.
             if (Tone.context.state !== 'running') {
                 Tone.start();
             }
@@ -194,6 +194,12 @@
 
         function handlePadClick(color) {
             if (!isPlayerTurn || !gameInProgress) return;
+
+            // --- HAPTIC FEEDBACK ADDED HERE ---
+            // Trigger a short vibration for a button press
+            if (navigator.vibrate) {
+                navigator.vibrate(20); // 20 milliseconds
+            }
 
             flashPad(color, 150);
             playerSequence.push(color);
@@ -246,6 +252,12 @@
             gameInProgress = false;
             messageDisplay.textContent = message;
 
+            // --- HAPTIC FEEDBACK ADDED HERE ---
+            // Trigger a longer, patterned vibration for game over
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 50, 200]); // Vibrate 200ms, pause 50ms, vibrate 200ms
+            }
+
             if (synth) {
                 synth.triggerAttackRelease(['C2', 'E2', 'G2'], '4n');
             }
@@ -266,3 +278,4 @@
     </script>
 </body>
 </html>
+
