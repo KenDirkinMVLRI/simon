@@ -195,10 +195,10 @@
         function handlePadClick(color) {
             if (!isPlayerTurn || !gameInProgress) return;
 
-            // --- HAPTIC FEEDBACK ADDED HERE ---
-            // Trigger a short vibration for a button press
+            // --- HAPTIC FEEDBACK (STRONGER) ---
+            // Trigger a longer vibration for a button press
             if (navigator.vibrate) {
-                navigator.vibrate(20); // 20 milliseconds
+                navigator.vibrate(75); // Increased from 20ms to 75ms
             }
 
             flashPad(color, 150);
@@ -252,10 +252,10 @@
             gameInProgress = false;
             messageDisplay.textContent = message;
 
-            // --- HAPTIC FEEDBACK ADDED HERE ---
+            // --- HAPTIC FEEDBACK (STRONGER) ---
             // Trigger a longer, patterned vibration for game over
             if (navigator.vibrate) {
-                navigator.vibrate([200, 50, 200]); // Vibrate 200ms, pause 50ms, vibrate 200ms
+                navigator.vibrate([300, 50, 300]); // Increased from 200ms to 300ms
             }
 
             if (synth) {
@@ -278,4 +278,3 @@
     </script>
 </body>
 </html>
-
