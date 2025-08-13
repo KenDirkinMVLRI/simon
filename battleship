@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        .board-container {
+            text-align: center;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            border: 2px solid #21262d;
+            background-color: #161b22;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #21262d;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .cell:hover {
+            background-color: #30363d;
+        }
+        .cell.placed {
+            background-color: #4a4a4a;
+        }
+        .cell.hit {
+            background-color: #e34c26;
+            animation: explode 0.5s forwards;
+            pointer-events: none;
+        }
+        .cell.miss {
+            background-color: #3f729b;
+            color: white;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0.5; }
+        }
+        #status-display {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            min-height: 30px;
+            font-weight: bold;
+        }
+        .player-info {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        #ok-button {
+            padding: 12px 24px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            display: none;
+            margin-top: 20px;
+        }
+        #ship-selector {
+            margin-top: 20px;
+        }
+        #ship-selector label {
+            margin-right: 10px;
+        }
+        .ship-button {
+            padding: 8px 16px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #30363d;
+            color: white;
+            border: 1px solid #8b949e;
+            border-radius: 4px;
+        }
+        .ship-button.active {
+            background-color: #238636;
+        }
+        .hidden-board {
+            display: none;
+        }
+        #ship-selector-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Battleship Hot-Seat</h1>
+    <div id="status-display">Player 1: Place your ships.</div>
+
+    <div class="container">
+        <div class="board-container">
+            <h2 id="player-title">Player 1's Board</h2>
+            <div id="player-board" class="board"></div>
+        </div>
+        <div class="board-container">
+            <h2 id="opponent-title">Opponent's Board</h2>
+            <div id="opponent-board" class="board"></div>
+        </div>
+    </div>
+    
+    <div id="ship-selector-container" style="display: block;">
+        <label for="orientation">Ship Orientation:</label>
+        <button id="rotate-btn" class="ship-button">Horizontal</button>
+    </div>
+
+    <button id="ok-button">OK</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const playerBoardEl = document.getElementById('player-board');
+            const opponentBoardEl = document.getElementById('opponent-board');
+            const statusDisplay = document.getElementById('status-display');
+            const okButton = document.getElementById('ok-button');
+            const playerTitle = document.
