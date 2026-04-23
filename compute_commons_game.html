@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compute Commons: Acceleration Balance</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --bg2: #0d1b2e;
+      --panel: rgba(255, 255, 255, 0.075);
+      --panel2: rgba(255, 255, 255, 0.11);
+      --panel3: rgba(255, 255, 255, 0.16);
+      --text: #eff7ff;
+      --muted: #aac0d6;
+      --muted2: #7891a9;
+      --line: rgba(255,255,255,.14);
+      --accent: #81f7d8;
+      --accent2: #9bbcff;
+      --warn: #ffd166;
+      --danger: #ff6b6b;
+      --ok: #7bed9f;
+      --science: #85c7ff;
+      --medicine: #ff9ec4;
+      --engineering: #ffcc7a;
+      --stewardship: #b9ff9d;
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --radius: 18px;
+      --radius2: 12px;
+      --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(129, 247, 216, .18), transparent 34%),
+        radial-gradient(circle at 80% 0%, rgba(155, 188, 255, .19), transparent 38%),
+        linear-gradient(135deg, #07111f 0%, #0b1729 50%, #08111f 100%);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    button, input, select { font-family: inherit; }
+    a { color: var(--accent); }
+
+    .app { width: min(1480px, calc(100% - 28px)); margin: 0 auto; padding: 20px 0 42px; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: linear-gradient(180deg, rgba(8,17,31,.96), rgba(8,17,31,.72));
+      backdrop-filter: blur(16px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 260px; }
+    .logo {
+      width: 48px; height: 48px; border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(129,247,216,.95), rgba(155,188,255,.95));
+      color: #07111f;
+      display: grid; place-items: center;
+      font-weight: 900;
+      box-shadow: 0 8px 30px rgba(129,247,216,.22);
+    }
+    h1 { font-size: clamp(1.2rem, 2.8vw, 1.85rem); margin: 0; letter-spacing: -.02em; }
+    .subtitle { color: var(--muted); font-size: .92rem; margin-top: 2px; }
+    .top-actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .btn {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,.09);
+      padding: 10px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform .13s ease, background .13s ease, border-color .13s ease, opacity .13s ease;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.24); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary {
+      background: linear-gradient(135deg, rgba(129,247,216,.97), rgba(155,188,255,.98));
+      color: #07111f;
+      border: none;
+      box-shadow: 0 10px 35px rgba(129,247,216,.18);
+    }
+    .btn.danger { border-color: rgba(255,107,107,.45); color: #ffd5d5; }
+    .btn.small { padding: 7px 10px; font-size: .82rem; }
+    .btn:disabled { opacity: .38; cursor: not-allowed; transform: none; }
+
+    .grid { display: grid; gap: 16px; }
+    .hero { grid-template-columns: 1.4fr .8fr; align-items: stretch; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.055));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-inner { padding: 18px; }
+    .intro {
+      min-height: 270px;
+      display: grid;
+      grid-template-columns: 1.3fr .85fr;
+      gap: 20px;
+      position: relative;
+    }
+    .intro h2 { font-size: clamp(1.55rem, 3.4vw, 3rem); line-height: 1.02; margin: 0 0 12px; letter-spacing: -.04em; }
+    .intro p { color: var(--muted); line-height: 1.55; margin: 0 0 14px; font-size: 1.01rem; }
+    .pillrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+    .pill, .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: .81rem;
+      font-weight: 700;
+    }
+    .badge { font-size: .76rem; padding: 5px 8px; }
+    .badge.good { color: #d7ffe6; border-color: rgba(123,237,159,.4); }
+    .badge.warn { color: #ffe9a9; border-color: rgba(255,209,102,.4); }
+    .badge.bad { color: #ffd5d5; border-color: rgba(255,107,107,.45); }
+    .badge.science { color: var(--science); }
+    .badge.medicine { color: var(--medicine); }
+    .badge.engineering { color: var(--engineering); }
+    .badge.stewardship { color: var(--stewardship); }
+
+    .mission-board {
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 35% 20%, rgba(129,247,216,.2), transparent 42%),
+        linear-gradient(145deg, rgba(4,9,18,.72), rgba(255,255,255,.08));
+      border: 1px solid var(--line);
+      padding: 16px;
+      min-height: 240px;
+    }
+    .mission-board h3 { margin: 0 0 10px; font-size: 1rem; }
+    .mission-list { display: grid; gap: 10px; margin-top: 12px; }
+    .mission-item { display: grid; grid-template-columns: 42px 1fr; gap: 10px; align-items: start; }
+    .mission-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.1); border: 1px solid var(--line); }
+    .mission-item strong { display: block; font-size: .91rem; }
+    .mission-item span { color: var(--muted); font-size: .8rem; line-height: 1.35; }
+
+    .status-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 16px; }
+    .metric {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.07);
+      padding: 14px;
+      min-height: 112px;
+    }
+    .metric .label { color: var(--muted); font-size: .82rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .metric .value { font-size: 1.7rem; margin: 6px 0 4px; font-weight: 900; letter-spacing: -.03em; }
+    .metric .hint { color: var(--muted2); font-size: .82rem; line-height: 1.35; }
+
+    .event-card { height: 100%; display: flex; flex-direction: column; }
+    .event-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .event-title h3 { margin: 0; font-size: 1.12rem; }
+    .event-box {
+      margin-top: 13px;
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(0,0,0,.20);
+      border: 1px solid var(--line);
+      flex: 1;
+    }
+    .event-name { font-weight: 900; font-size: 1.02rem; margin-bottom: 6px; }
+    .event-copy { color: var(--muted); line-height: 1.45; font-size: .92rem; }
+    .log {
+      margin-top: 13px;
+      max-height: 130px;
+      overflow: auto;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
+      padding-right: 4px;
+    }
+    .log div { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+
+    .dashboard { margin-top: 16px; }
+    .dashboard-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .dashboard h2, .section-title h2 { margin: 0; font-size: 1.25rem; }
+    .dashboard p, .section-title p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+    .resource-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+    .resource {
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 13px;
+    }
+    .resource-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .resource-name { font-weight: 900; }
+    .resource-value { color: var(--muted); font-size: .82rem; font-weight: 800; }
+    .bar {
+      margin-top: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.25);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .bar span { display: block; height: 100%; width: 50%; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
+    .resource-note { margin-top: 8px; font-size: .78rem; color: var(--muted2); min-height: 32px; }
+    .stability-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .stability { display: grid; grid-template-columns: 46px 1fr; gap: 10px; align-items: center; padding: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 15px; }
+    .dial { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--accent) 70%, rgba(255,255,255,.12) 0); font-weight: 900; color: #06101c; }
+    .stability strong { display: block; }
+    .stability span { color: var(--muted); font-size: .8rem; }
+    .chart-wrap { margin-top: 14px; border-radius: 15px; border: 1px solid var(--line); background: rgba(0,0,0,.16); padding: 12px; }
+    canvas { width: 100%; height: 170px; display: block; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+      position: sticky;
+      top: 86px;
+      z-index: 18;
+      background: rgba(8,17,31,.80);
+      backdrop-filter: blur(16px);
+      padding: 10px 0;
+    }
+    .tab-btn { border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--muted); padding: 10px 13px; border-radius: 999px; cursor: pointer; font-weight: 850; }
+    .tab-btn.active { background: rgba(129,247,216,.16); color: var(--text); border-color: rgba(129,247,216,.4); }
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    .section-title { display: flex; justify-content: space-between; gap: 14px; align-items: end; margin-bottom: 12px; }
+    .two-col { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: 16px; }
+    .summary-panel { background: rgba(255,255,255,.065); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+    .summary-panel h3 { margin: 0 0 8px; font-size: 1rem; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .mini { background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.09); border-radius: 12px; padding: 10px; }
+    .mini span { display: block; color: var(--muted2); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .mini strong { display: block; margin-top: 4px; font-size: 1.05rem; }
+
+    .slider-list { display: grid; gap: 12px; }
+    .slider-card {
+      background: rgba(255,255,255,.065);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 13px;
+    }
+    .slider-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 9px; }
+    .slider-head strong { display: block; font-size: .96rem; }
+    .slider-head span { display: block; color: var(--muted); font-size: .82rem; line-height: 1.35; margin-top: 3px; }
+    .slider-value { white-space: nowrap; color: var(--accent); font-weight: 900; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .impact-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+    .filter-btn { border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--muted); border-radius: 999px; padding: 8px 10px; font-weight: 800; cursor: pointer; }
+    .filter-btn.active { background: rgba(255,255,255,.16); color: var(--text); }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .option-card {
+      display: flex; flex-direction: column;
+      min-height: 260px;
+      background: rgba(255,255,255,.065);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .option-card::before {
+      content: "";
+      position: absolute; inset: 0 0 auto 0; height: 4px;
+      background: rgba(255,255,255,.25);
+    }
+    .option-card.science::before { background: linear-gradient(90deg, var(--science), transparent); }
+    .option-card.medicine::before { background: linear-gradient(90deg, var(--medicine), transparent); }
+    .option-card.engineering::before { background: linear-gradient(90deg, var(--engineering), transparent); }
+    .option-card.stewardship::before { background: linear-gradient(90deg, var(--stewardship), transparent); }
+    .option-card.additive::before { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .option-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .option-title { font-size: 1.02rem; line-height: 1.2; font-weight: 950; margin: 0; }
+    .option-desc { color: var(--muted); font-size: .86rem; line-height: 1.42; margin: 9px 0 12px; }
+    .costs, .rewards { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .rewards { margin-bottom: 10px; }
+    .option-footer { margin-top: auto; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding-top: 10px; }
+    .fine { color: var(--muted2); font-size: .76rem; line-height: 1.35; }
+
+    .queue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .queue-box { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.065); padding: 14px; min-height: 220px; }
+    .queue-box h3 { margin: 0 0 10px; }
+    .queue-item { padding: 10px; border-radius: 12px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.08); margin-bottom: 8px; }
+    .queue-item strong { display: block; }
+    .queue-item span { display: block; color: var(--muted); font-size: .82rem; margin-top: 3px; }
+    .progress { height: 8px; background: rgba(255,255,255,.1); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+    .progress span { height: 100%; display: block; background: var(--accent); border-radius: inherit; }
+
+    .sources { color: var(--muted); line-height: 1.55; }
+    .sources h3 { color: var(--text); margin-bottom: 6px; }
+    .sources ul { margin-top: 8px; }
+    .sources li { margin: 8px 0; }
+    .idea-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .idea-cloud span { border: 1px solid var(--line); background: rgba(255,255,255,.06); border-radius: 999px; padding: 6px 9px; color: var(--muted); font-size: .8rem; }
+
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .modal-backdrop.active { display: flex; }
+    .modal { width: min(760px, 100%); max-height: 90vh; overflow: auto; border-radius: 24px; background: #0d1b2e; border: 1px solid var(--line); box-shadow: var(--shadow); padding: 22px; }
+    .modal h2 { margin: 0 0 8px; font-size: 2rem; }
+    .modal p { color: var(--muted); line-height: 1.55; }
+    .end-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .end-stat { background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .end-stat span { display: block; color: var(--muted2); font-size: .72rem; text-transform: uppercase; font-weight: 900; letter-spacing: .06em; }
+    .end-stat strong { display: block; font-size: 1.4rem; margin-top: 5px; }
+
+    .toast {
+      position: fixed; right: 18px; bottom: 18px; z-index: 120;
+      background: rgba(13,27,46,.94); border: 1px solid var(--line); color: var(--text);
+      border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow); max-width: 360px;
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1100px) {
+      .hero, .intro, .two-col { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .resource-grid { grid-template-columns: repeat(2, 1fr); }
+      .status-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .app { width: min(100% - 18px, 1480px); }
+      .topbar { align-items: flex-start; flex-direction: column; position: static; }
+      .top-actions { justify-content: flex-start; }
+      .tabs { top: 0; overflow-x: auto; flex-wrap: nowrap; }
+      .cards-grid, .resource-grid, .stability-grid, .queue-grid, .mini-grid, .status-grid, .end-grid { grid-template-columns: 1fr; }
+      .section-title { align-items: flex-start; flex-direction: column; }
+      .filters { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">CC</div>
+        <div>
+          <h1>Compute Commons</h1>
+          <div class="subtitle">Acceleration Balance: resource trade-offs for beneficial AI</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="helpBtn">How to play</button>
+        <button class="btn" id="saveBtn">Save</button>
+        <button class="btn danger" id="resetBtn">Reset</button>
+        <button class="btn primary" id="nextTurnBtn">Run next quarter</button>
+      </div>
+    </header>
+
+    <section class="grid hero">
+      <div class="card intro card-inner">
+        <div>
+          <h2>Can you fund frontier AI without breaking the commons?</h2>
+          <p>You manage a high-tech region trying to power AI labs for physics, chemistry, biology, medicine, infrastructure, and space engineering. Reprioritize existing consumption, build additive clean supply, launch AI programs, and keep public trust, reliability, and wellbeing above the danger zone.</p>
+          <div class="pillrow">
+            <span class="pill">⚡ energy headroom</span>
+            <span class="pill">💧 water resilience</span>
+            <span class="pill">🌫️ carbon headroom</span>
+            <span class="pill">🧠 compute</span>
+            <span class="pill">🧱 materials</span>
+            <span class="pill">🤝 public trust</span>
+          </div>
+          <div class="status-grid grid">
+            <div class="metric">
+              <div class="label">Quarter</div>
+              <div class="value" id="turnLabel">Q1 / 12</div>
+              <div class="hint" id="yearLabel">Year 2030</div>
+            </div>
+            <div class="metric">
+              <div class="label">Beneficial AI Value</div>
+              <div class="value" id="scoreLabel">0</div>
+              <div class="hint">Breakthrough points plus resilience and trust.</div>
+            </div>
+            <div class="metric">
+              <div class="label">Breakthroughs</div>
+              <div class="value" id="breakthroughLabel">0</div>
+              <div class="hint">Completed science, medicine, and engineering programs.</div>
+            </div>
+            <div class="metric">
+              <div class="label">Strategy</div>
+              <div class="value" id="styleLabel">Balanced</div>
+              <div class="hint">Updates from your mix of reprioritization and additive supply.</div>
+            </div>
+          </div>
+        </div>
+        <aside class="mission-board">
+          <h3>Core objective</h3>
+          <p style="margin:0;color:var(--muted);font-size:.9rem;line-height:1.45;">Maximize beneficial AI outputs by choosing where resources come from: consumption shifts, additive supply, infrastructure efficiency, or a risky fossil-heavy sprint.</p>
+          <div class="mission-list">
+            <div class="mission-item"><div class="mission-icon">🔄</div><div><strong>Reprioritize</strong><span>Free resource headroom from streaming, cars, flights, HVAC peaks, devices, and industrial scheduling.</span></div></div>
+            <div class="mission-item"><div class="mission-icon">➕</div><div><strong>Add resources</strong><span>Build renewables, firm clean power, water recycling, transmission, cooling, chips, and lab automation.</span></div></div>
+            <div class="mission-item"><div class="mission-icon">🚀</div><div><strong>Accelerate</strong><span>Launch AI projects in science, medicine, engineering, and stewardship.</span></div></div>
+          </div>
+        </aside>
+      </div>
+
+      <aside class="card event-card card-inner">
+        <div class="event-title">
+          <h3>Current world event</h3>
+          <span class="badge" id="eventTag">System</span>
+        </div>
+        <div class="event-box">
+          <div class="event-name" id="eventName">Opening allocation window</div>
+          <div class="event-copy" id="eventDesc">You have one quarter to set initial trade-offs and launch projects. The first external shock arrives after you run the next quarter.</div>
+          <div class="impact-row" id="eventImpacts"></div>
+        </div>
+        <div class="log" id="logBox"></div>
+      </aside>
+    </section>
+
+    <section class="card dashboard card-inner">
+      <div class="dashboard-head">
+        <div>
+          <h2>Resource dashboard</h2>
+          <p>Resources refresh each quarter from your base capacity, completed additive builds, current reprioritization settings, and the active event. Spending on builds and projects subtracts from this quarter’s availability.</p>
+        </div>
+        <div class="pillrow" style="margin:0;justify-content:flex-end;">
+          <span class="pill" id="efficiencyPill">AI efficiency +0%</span>
+          <span class="pill" id="cleanPill">Clean supply +0%</span>
+          <span class="pill" id="validationPill">Validation +0%</span>
+        </div>
+      </div>
+      <div class="resource-grid" id="resourceGrid"></div>
+      <div class="stability-grid">
+        <div class="stability"><div class="dial" id="trustDial">72</div><div><strong>Public trust</strong><span>Political support for hard trade-offs and AI lab expansion.</span></div></div>
+        <div class="stability"><div class="dial" id="wellbeingDial">78</div><div><strong>Wellbeing</strong><span>How much daily life still feels abundant and fair.</span></div></div>
+        <div class="stability"><div class="dial" id="reliabilityDial">74</div><div><strong>Grid reliability</strong><span>Ability to handle peak load, shocks, and local bottlenecks.</span></div></div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="historyCanvas" width="1200" height="220" aria-label="Resource history chart"></canvas>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Game tabs">
+      <button class="tab-btn active" data-tab="policy">1. Reprioritize consumption</button>
+      <button class="tab-btn" data-tab="build">2. Add resources</button>
+      <button class="tab-btn" data-tab="projects">3. Launch AI programs</button>
+      <button class="tab-btn" data-tab="lab">4. Active work</button>
+      <button class="tab-btn" data-tab="sources">Sources & model notes</button>
+    </nav>
+
+    <main>
+      <section class="tab active" id="policyTab">
+        <div class="section-title">
+          <div>
+            <h2>Reprioritize existing consumption</h2>
+            <p>Sliders free up energy-equivalent headroom, carbon headroom, water, materials, and budget. Deep cuts can reduce wellbeing and trust unless you compensate with successful projects and additive abundance.</p>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="summary-panel">
+            <h3>Current reprioritization yield</h3>
+            <div class="mini-grid" id="savingsGrid"></div>
+            <div style="height:12px"></div>
+            <h3>Social friction next quarter</h3>
+            <p class="fine" id="socialFrictionText">Low: people barely notice the changes.</p>
+            <div class="idea-cloud">
+              <span>video quality & caching</span><span>music/data hygiene</span><span>car miles shifted</span><span>flights avoided</span><span>HVAC demand response</span><span>industrial flexibility</span><span>device reuse</span><span>food/waste loops</span>
+            </div>
+          </div>
+          <div class="slider-list" id="sliderList"></div>
+        </div>
+      </section>
+
+      <section class="tab" id="buildTab">
+        <div class="section-title">
+          <div>
+            <h2>Additive resource builds</h2>
+            <p>These do not depend on reducing daily consumption, but they cost budget, materials, carbon headroom, and sometimes water. Completed builds increase future quarterly capacity or reduce bottlenecks.</p>
+          </div>
+        </div>
+        <div class="cards-grid" id="buildGrid"></div>
+      </section>
+
+      <section class="tab" id="projectsTab">
+        <div class="section-title">
+          <div>
+            <h2>AI-enabled output programs</h2>
+            <p>Use your resource headroom to train and run AI systems for ambitious science, medicine, engineering, and stewardship goals. Costs are reduced by completed efficiency and clean-supply investments.</p>
+          </div>
+          <div class="filters" id="projectFilters"></div>
+        </div>
+        <div class="cards-grid" id="projectGrid"></div>
+      </section>
+
+      <section class="tab" id="labTab">
+        <div class="section-title">
+          <div>
+            <h2>Active work and impact portfolio</h2>
+            <p>Builds and AI programs finish after their remaining quarter count reaches zero. Some projects fail to fully land, but still generate partial learning.</p>
+          </div>
+        </div>
+        <div class="queue-grid">
+          <div class="queue-box">
+            <h3>Build queue</h3>
+            <div id="buildQueue"></div>
+          </div>
+          <div class="queue-box">
+            <h3>AI programs in flight</h3>
+            <div id="projectQueue"></div>
+          </div>
+        </div>
+        <div style="height:14px"></div>
+        <div class="queue-grid">
+          <div class="queue-box">
+            <h3>Impact totals</h3>
+            <div class="mini-grid" id="impactGrid"></div>
+          </div>
+          <div class="queue-box">
+            <h3>Strategic diagnosis</h3>
+            <p id="diagnosisText" class="sources" style="margin:0;"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="sourcesTab">
+        <div class="card card-inner sources">
+          <h2 style="margin-top:0;">Sources, assumptions, and toy-model limits</h2>
+          <p><strong>This is a strategy game, not a forecast.</strong> Resource units are normalized game units inspired by public data. The point is to feel the trade-off space: shifting demand helps, but large AI buildouts usually require additive supply, cooling, grid capacity, transparency, and public legitimacy.</p>
+          <h3>Calibration anchors used to set the game’s shape</h3>
+          <ul>
+            <li><a href="https://www.iea.org/reports/energy-and-ai/energy-demand-from-ai" target="_blank" rel="noreferrer">IEA, Energy demand from AI</a>: global data-center electricity consumption is projected to roughly double to about 945 TWh by 2030 in the Base Case, just under 3% of global electricity consumption.</li>
+            <li><a href="https://www.iea.org/reports/energy-and-ai/energy-supply-for-ai" target="_blank" rel="noreferrer">IEA, Energy supply for AI</a>: data-center electricity is physically supplied by local grids, with renewables, gas, coal, and nuclear all relevant; fossil fuels remain important in near-term demand spikes.</li>
+            <li><a href="https://eta.lbl.gov/publications/2024-lbnl-data-center-energy-usage-report" target="_blank" rel="noreferrer">Lawrence Berkeley National Laboratory, 2024 U.S. Data Center Energy Usage Report</a>: U.S. data centers used 176 TWh in 2023, about 4.4% of U.S. electricity consumption, with a 2028 scenario range of roughly 325–580 TWh.</li>
+            <li>The same LBNL report estimated substantial indirect water consumption from electricity generation for U.S. data centers, making cooling method, location, and grid mix important.</li>
+            <li><a href="https://www.eia.gov/energyexplained/use-of-energy/transportation.php" target="_blank" rel="noreferrer">U.S. EIA, Use of energy for transportation</a>: light-duty vehicles account for the largest share of U.S. transportation-sector energy use, motivating the game’s transportation trade-off sliders.</li>
+          </ul>
+          <h3>Game-design choices</h3>
+          <p>Digital media savings are intentionally modest compared with transport, HVAC peaks, industrial flexibility, and additive power builds. “Carbon headroom” represents emissions space under a social or policy constraint, not a license to emit. “Energy headroom” mixes electricity, avoided peak load, and fuel-equivalent flexibility because the game is about prioritization rather than exact engineering dispatch.</p>
+          <h3>Ideas included in the AI output bucket list</h3>
+          <div class="idea-cloud" id="ideaCloud"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modalContent"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const RES = {
+    energy: { label: 'Energy', unit: 'GWh-eq', icon: '⚡', color: '#81f7d8', note: 'Electricity, avoided peak load, and fuel-equivalent headroom.' },
+    water: { label: 'Water', unit: 'ML', icon: '💧', color: '#85c7ff', note: 'Cooling, power generation, labs, and local water resilience.' },
+    carbon: { label: 'Carbon headroom', unit: 'ktCO₂e', icon: '🌫️', color: '#b9ff9d', note: 'Emissions space under a social/policy constraint.' },
+    compute: { label: 'Compute', unit: 'PF-month', icon: '🧠', color: '#c7a8ff', note: 'Accelerator availability, inference, training, and lab automation.' },
+    materials: { label: 'Materials', unit: 'units', icon: '🧱', color: '#ffcc7a', note: 'Chips, critical minerals, transformers, cooling hardware, lab robots.' },
+    budget: { label: 'Budget', unit: '$B-eq', icon: '🏛️', color: '#ffd166', note: 'Public/private investment capacity this quarter.' }
+  };
+
+  const BASE_CAPACITY = { energy: 720, water: 560, carbon: 270, compute: 260, materials: 175, budget: 170 };
+  const EMPTY = { energy: 0, water: 0, carbon: 0, compute: 0, materials: 0, budget: 0 };
+  const MAX_TURNS = 12;
+
+  const sliders = [
+    {
+      id: 'video', name: 'Streaming video: 4K to adaptive HD + off-peak caching',
+      desc: 'Reduce background 4K, cache popular content, and shift some entertainment to lower-bitrate modes.',
+      max: { energy: 28, water: 5, carbon: 6, budget: 3 }, wellbeing: -1.4, trust: -0.6
+    },
+    {
+      id: 'music', name: 'Music, social feeds, and data hygiene',
+      desc: 'Batch downloads, better caching, fewer autoplay loops, and less disposable data churn.',
+      max: { energy: 8, water: 2, carbon: 2, budget: 1 }, wellbeing: -0.4, trust: -0.2
+    },
+    {
+      id: 'cars', name: 'Cars: transit, EV pooling, telepresence, compact cities',
+      desc: 'Cut fossil car miles and smooth EV charging so transportation frees carbon and energy-equivalent headroom.',
+      max: { energy: 105, water: 7, carbon: 48, budget: 10 }, wellbeing: -4.2, trust: 1.4
+    },
+    {
+      id: 'planes', name: 'Flights: fewer low-value trips + immersive telepresence',
+      desc: 'Replace some business and discretionary flights with virtual presence and longer, less frequent trips.',
+      max: { energy: 70, water: 4, carbon: 54, budget: 16 }, wellbeing: -5.8, trust: -1.6
+    },
+    {
+      id: 'hvac', name: 'Buildings: HVAC demand response and thermal storage',
+      desc: 'Pre-cool, pre-heat, insulate, and automate demand so peak electricity is available for compute.',
+      max: { energy: 85, water: 9, carbon: 15, budget: 8 }, wellbeing: -3.3, trust: 0.8, reliability: 2.8
+    },
+    {
+      id: 'industry', name: 'Industrial flexibility: shift noncritical loads',
+      desc: 'Move some production to times with clean surplus and pause low-value loads during grid stress.',
+      max: { energy: 120, water: 12, carbon: 28, budget: -10 }, wellbeing: -2.3, trust: -0.6, reliability: 3.5
+    },
+    {
+      id: 'devices', name: 'Device reuse, repair, and chip recycling',
+      desc: 'Extend phone/laptop lifetimes, recycle accelerators, and recover critical materials.',
+      max: { energy: 18, water: 4, carbon: 7, materials: 45, budget: 4 }, wellbeing: -1.9, trust: 2.2
+    },
+    {
+      id: 'foodwaste', name: 'Food waste, wastewater heat, and biomethane loops',
+      desc: 'Use waste streams for heat, cooling, methane capture, and recycled process water.',
+      max: { energy: 32, water: 34, carbon: 12, budget: 3 }, wellbeing: 1.2, trust: 3.0, reliability: 1.2
+    }
+  ];
+
+  const builds = [
+    {
+      id: 'solarStorage', name: 'Solar farms + four-hour batteries', type: 'Additive clean supply', duration: 2,
+      desc: 'Fast clean generation with storage for evening AI training windows.',
+      cost: { budget: 42, materials: 22, carbon: 8, water: 4 },
+      effect: { energy: 95, carbon: 28, reliability: 7, clean: 7 },
+      note: 'Strong early move; needs materials and grid space.'
+    },
+    {
+      id: 'windCorridor', name: 'Wind corridor + HVDC spur', type: 'Additive clean supply', duration: 2,
+      desc: 'High-capacity wind linked to data-center regions with transmission reinforcement.',
+      cost: { budget: 46, materials: 27, carbon: 10, water: 3 },
+      effect: { energy: 105, carbon: 32, reliability: 8, clean: 8 },
+      note: 'Better with transmission; variable but complementary to solar.'
+    },
+    {
+      id: 'geothermal', name: 'Enhanced geothermal loop', type: 'Firm clean power', duration: 3,
+      desc: '24/7 low-carbon power and useful heat for district energy systems.',
+      cost: { budget: 58, materials: 30, carbon: 12, water: 10 },
+      effect: { energy: 125, carbon: 40, reliability: 17, clean: 10, budget: 2 },
+      note: 'Firm power reduces bottlenecks.'
+    },
+    {
+      id: 'smr', name: 'Advanced nuclear / SMR campus', type: 'Firm clean power', duration: 4,
+      desc: 'Large firm clean supply with licensing, trust, and cooling trade-offs.',
+      cost: { budget: 96, materials: 45, carbon: 14, water: 28 },
+      effect: { energy: 230, carbon: 70, reliability: 26, clean: 16, trust: -2 },
+      note: 'Powerful, slow, and politically sensitive.'
+    },
+    {
+      id: 'transmission', name: 'Transmission, substations, transformers', type: 'Grid capacity', duration: 2,
+      desc: 'Upgrade interconnection queues, local substations, and high-voltage lines.',
+      cost: { budget: 38, materials: 34, carbon: 8 },
+      effect: { energy: 60, carbon: 18, reliability: 24, clean: 5 },
+      note: 'Often the binding constraint for new data centers.'
+    },
+    {
+      id: 'cooling', name: 'Immersion + closed-loop cooling retrofit', type: 'Water efficiency', duration: 2,
+      desc: 'Reduce evaporative water demand and improve rack density.',
+      cost: { budget: 34, materials: 18, energy: 8 },
+      effect: { water: 92, efficiency: 5, reliability: 7, trust: 2 },
+      note: 'Great in dry regions; helps water-heavy medicine and chemistry projects.'
+    },
+    {
+      id: 'waterReuse', name: 'Reclaimed water + district heat reuse', type: 'Water and community benefit', duration: 2,
+      desc: 'Use non-potable cooling loops and sell waste heat to neighborhoods and industry.',
+      cost: { budget: 32, materials: 17, energy: 6 },
+      effect: { water: 110, budget: 6, reliability: 5, trust: 6, wellbeing: 3 },
+      note: 'Turns data centers into useful heat infrastructure.'
+    },
+    {
+      id: 'chipLease', name: 'Accelerator leasing and advanced packaging', type: 'Compute supply', duration: 3,
+      desc: 'Secure GPU/ASIC clusters, memory bandwidth, and packaging capacity.',
+      cost: { budget: 70, materials: 38, energy: 16, water: 12, carbon: 12 },
+      effect: { compute: 130, materials: 12, efficiency: 3 },
+      note: 'Compute-rich strategy; watch energy and water.'
+    },
+    {
+      id: 'aiEfficiency', name: 'AI efficiency lab: sparsity, distillation, scheduling', type: 'Efficiency', duration: 2,
+      desc: 'Reduce compute and energy per useful breakthrough through better algorithms and workload scheduling.',
+      cost: { budget: 44, materials: 14, compute: 25 },
+      effect: { efficiency: 13, compute: 35, energy: 18, trust: 2 },
+      note: 'Compounds with every project launched later.'
+    },
+    {
+      id: 'autolab', name: 'Autonomous science lab network', type: 'Lab automation', duration: 3,
+      desc: 'Robot labs for chemistry, biology, materials, and medical validation.',
+      cost: { budget: 62, materials: 32, energy: 20, water: 20 },
+      effect: { compute: 55, materials: 20, validation: 8, budget: 8 },
+      note: 'Improves experimental throughput and validation.'
+    },
+    {
+      id: 'gasCCS', name: 'Gas peakers with carbon capture', type: 'Risky fossil bridge', duration: 1,
+      desc: 'Rapid reliability boost using fossil supply, partial capture, and political risk.',
+      cost: { budget: 35, materials: 14, water: 22, carbon: 42 },
+      effect: { energy: 145, reliability: 20, trust: -7, clean: -4 },
+      note: 'Useful in crises but hurts climate legitimacy.'
+    },
+    {
+      id: 'dacGrid', name: 'Direct-air-capture balancing contract', type: 'Carbon headroom', duration: 3,
+      desc: 'Early carbon-removal procurement paired with clean electricity and storage.',
+      cost: { budget: 58, materials: 22, energy: 38, water: 14 },
+      effect: { carbon: 88, trust: 3, clean: 3 },
+      note: 'Expensive carbon flexibility; not a substitute for clean supply.'
+    }
+  ];
+
+  const projects = [
+    // Science
+    {
+      id: 'fusionPolicyNet', bucket: 'Science', title: 'Fusion plasma policy net', duration: 3, chance: .72,
+      desc: 'Train surrogate models that control plasma instabilities and propose new stellarator/tokamak operating regimes.',
+      cost: { energy: 130, water: 38, carbon: 24, compute: 115, materials: 24, budget: 42 },
+      reward: { science: 105, engineering: 35, energy: 38, reliability: 4, trust: 4 },
+      note: 'Potential long-run energy dividend.'
+    },
+    {
+      id: 'superconductors', bucket: 'Science', title: 'Room-temperature superconductor search', duration: 2, chance: .66,
+      desc: 'Explore high-pressure, metastable, and AI-generated crystal families with autonomous synthesis.',
+      cost: { energy: 82, water: 24, carbon: 15, compute: 82, materials: 30, budget: 30 },
+      reward: { science: 82, engineering: 58, efficiency: 7, reliability: 7 },
+      note: 'Improves future grids and compute density.'
+    },
+    {
+      id: 'autochem', bucket: 'Science', title: 'Autonomous chemistry atlas', duration: 2, chance: .78,
+      desc: 'Map reaction pathways for batteries, fuels, membranes, catalysts, and carbon-cycle enzymes.',
+      cost: { energy: 66, water: 32, carbon: 12, compute: 70, materials: 24, budget: 26 },
+      reward: { science: 62, medicine: 10, materials: 18, validation: 2 },
+      note: 'General-purpose discovery platform.'
+    },
+    {
+      id: 'quantumArch', bucket: 'Science', title: 'Quantum error-correction architectures', duration: 3, chance: .61,
+      desc: 'Use AI to search fault-tolerant layouts, decoders, and cryogenic control strategies.',
+      cost: { energy: 94, water: 22, carbon: 16, compute: 128, materials: 34, budget: 44 },
+      reward: { science: 98, engineering: 45, compute: 35, efficiency: 3 },
+      note: 'High compute demand, high upside.'
+    },
+    {
+      id: 'climateAerosol', bucket: 'Science', title: 'Climate intervention safety simulator', duration: 2, chance: .82,
+      desc: 'Model aerosols, carbon feedbacks, adaptation, and governance constraints before any real-world intervention.',
+      cost: { energy: 56, water: 18, carbon: 9, compute: 64, materials: 10, budget: 24 },
+      reward: { science: 48, engineering: 24, trust: 8, reliability: 8, validation: 4 },
+      note: 'Builds public legitimacy through transparency.'
+    },
+    {
+      id: 'bioEnzymes', bucket: 'Science', title: 'Carbon and nitrogen-cycle enzyme design', duration: 2, chance: .74,
+      desc: 'Design enzymes and microbes for carbon capture, soil restoration, green ammonia, and pollution cleanup.',
+      cost: { energy: 72, water: 46, carbon: 11, compute: 84, materials: 16, budget: 32 },
+      reward: { science: 74, medicine: 18, carbon: 28, water: 16, wellbeing: 4 },
+      note: 'Water-intensive but restorative.'
+    },
+    {
+      id: 'extremeMaterials', bucket: 'Science', title: 'Extreme-radiation space materials', duration: 2, chance: .70,
+      desc: 'Discover materials that survive radiation, reentry, lunar dust, and high-temperature propulsion.',
+      cost: { energy: 78, water: 22, carbon: 17, compute: 80, materials: 38, budget: 30 },
+      reward: { science: 58, engineering: 78, materials: 10 },
+      note: 'Enables deep-space engineering.'
+    },
+    {
+      id: 'cosmology', bucket: 'Science', title: 'Cosmology and particle-theory explorer', duration: 2, chance: .64,
+      desc: 'Search mathematical structures, simulations, and experimental designs for dark matter and quantum gravity clues.',
+      cost: { energy: 58, water: 12, carbon: 8, compute: 90, materials: 8, budget: 26 },
+      reward: { science: 92, trust: 2 },
+      note: 'Pure-science prestige, fewer direct resource returns.'
+    },
+    {
+      id: 'batteryElectrolytes', bucket: 'Science', title: 'Battery electrolyte and gigacell discovery', duration: 2, chance: .80,
+      desc: 'Automate electrolyte, separator, and electrode discovery for cheaper storage and safer fast charging.',
+      cost: { energy: 64, water: 23, carbon: 9, compute: 74, materials: 32, budget: 30 },
+      reward: { science: 48, engineering: 66, energy: 32, reliability: 9, materials: 6 },
+      note: 'Storage helps every future additive build.'
+    },
+
+    // Medicine
+    {
+      id: 'panCancer', bucket: 'Medicine', title: 'Pan-cancer vaccine atlas', duration: 3, chance: .73,
+      desc: 'Train multimodal models on tumor antigens, immune response, and trial data to generate vaccine candidates.',
+      cost: { energy: 88, water: 34, carbon: 16, compute: 112, materials: 16, budget: 42 },
+      reward: { medicine: 124, science: 20, trust: 10, wellbeing: 10, budget: 5 },
+      note: 'Huge social benefit if validated.'
+    },
+    {
+      id: 'crisprTwin', bucket: 'Medicine', title: 'CRISPR off-target safety twin', duration: 2, chance: .80,
+      desc: 'Use genome-scale models to predict edits, off-target effects, delivery vectors, and regulatory safety evidence.',
+      cost: { energy: 70, water: 26, carbon: 11, compute: 92, materials: 18, budget: 32 },
+      reward: { medicine: 78, science: 28, trust: 8, validation: 4 },
+      note: 'Unlocks safer genetic treatments.'
+    },
+    {
+      id: 'antimicrobial', bucket: 'Medicine', title: 'Antimicrobial resistance phage forge', duration: 2, chance: .79,
+      desc: 'Design phages, peptides, and combination therapies for resistant bacterial infections.',
+      cost: { energy: 62, water: 30, carbon: 10, compute: 74, materials: 16, budget: 25 },
+      reward: { medicine: 74, science: 12, wellbeing: 8, trust: 4 },
+      note: 'High near-term health payoff.'
+    },
+    {
+      id: 'rareDisease', bucket: 'Medicine', title: 'Rare-disease gene therapy designer', duration: 3, chance: .68,
+      desc: 'Generate personalized vectors, dosing plans, and safety evidence for ultra-rare disease treatments.',
+      cost: { energy: 78, water: 24, carbon: 13, compute: 90, materials: 22, budget: 38 },
+      reward: { medicine: 96, trust: 7, wellbeing: 7, validation: 2 },
+      note: 'Equity boost when trust is fragile.'
+    },
+    {
+      id: 'neuroMapper', bucket: 'Medicine', title: 'Neurodegeneration circuit mapper', duration: 3, chance: .65,
+      desc: 'Link protein pathology, neural circuits, imaging, and behavior for Alzheimer’s, Parkinson’s, and ALS.',
+      cost: { energy: 84, water: 24, carbon: 14, compute: 102, materials: 17, budget: 40 },
+      reward: { medicine: 104, science: 24, wellbeing: 7, trust: 5 },
+      note: 'Compute-heavy, high social value.'
+    },
+    {
+      id: 'lowCostDx', bucket: 'Medicine', title: 'Low-cost global diagnostics', duration: 1, chance: .87,
+      desc: 'AI models for cheap imaging, portable labs, rural triage, epidemic warning, and decision support.',
+      cost: { energy: 42, water: 12, carbon: 5, compute: 42, materials: 9, budget: 20 },
+      reward: { medicine: 52, engineering: 20, trust: 9, budget: 8, wellbeing: 5 },
+      note: 'Reliable early win.'
+    },
+    {
+      id: 'digitalTrials', bucket: 'Medicine', title: 'Personalized digital-twin clinical trials', duration: 3, chance: .67,
+      desc: 'Synthetic cohorts, mechanistic models, and adaptive trials to accelerate safe drug discovery.',
+      cost: { energy: 94, water: 36, carbon: 18, compute: 120, materials: 18, budget: 48 },
+      reward: { medicine: 124, engineering: 24, validation: 7, trust: 5 },
+      note: 'Pairs well with validation investments.'
+    },
+    {
+      id: 'longevity', bucket: 'Medicine', title: 'Longevity damage-repair screen', duration: 3, chance: .58,
+      desc: 'Search interventions for senescent cells, protein aggregates, immune aging, and tissue regeneration.',
+      cost: { energy: 88, water: 40, carbon: 16, compute: 108, materials: 22, budget: 44 },
+      reward: { medicine: 105, science: 42, wellbeing: 7, trust: -1 },
+      note: 'High upside, ethically contested.'
+    },
+    {
+      id: 'mentalHealth', bucket: 'Medicine', title: 'Adaptive mental-health therapeutics', duration: 1, chance: .85,
+      desc: 'Personalized therapy copilots, crisis prediction, neurofeedback, and careful clinical guardrails.',
+      cost: { energy: 44, water: 10, carbon: 6, compute: 50, materials: 8, budget: 22 },
+      reward: { medicine: 62, trust: 6, wellbeing: 9, validation: 2 },
+      note: 'Good for wellbeing while society adapts.'
+    },
+
+    // Engineering
+    {
+      id: 'gridAI', bucket: 'Engineering', title: 'Autonomous grid planning and demand orchestration', duration: 2, chance: .84,
+      desc: 'Optimize interconnection, storage dispatch, flexible loads, and data-center training schedules.',
+      cost: { energy: 58, water: 18, carbon: 9, compute: 76, materials: 22, budget: 32 },
+      reward: { engineering: 82, science: 12, reliability: 18, energy: 28, efficiency: 3, trust: 3 },
+      note: 'Reduces future bottlenecks.'
+    },
+    {
+      id: 'greenSteel', bucket: 'Engineering', title: 'Carbon-negative cement and green steel', duration: 3, chance: .70,
+      desc: 'AI process optimization for clinker alternatives, hydrogen DRI, mineralization, and circular construction.',
+      cost: { energy: 82, water: 32, carbon: 16, compute: 84, materials: 30, budget: 42 },
+      reward: { engineering: 102, science: 34, carbon: 42, materials: 10, wellbeing: 3 },
+      note: 'Industrial decarbonization dividend.'
+    },
+    {
+      id: 'spaceLaunch', bucket: 'Engineering', title: 'Reusable launch and orbital manufacturing planner', duration: 4, chance: .62,
+      desc: 'Design rapid reuse, autonomous assembly, propellant depots, and in-orbit manufacturing logistics.',
+      cost: { energy: 114, water: 24, carbon: 30, compute: 132, materials: 46, budget: 58 },
+      reward: { engineering: 136, science: 42, trust: 6, materials: 16, budget: 6 },
+      note: 'Prestige and long-horizon upside.'
+    },
+    {
+      id: 'infrastructureRobots', bucket: 'Engineering', title: 'Robotic infrastructure triage', duration: 2, chance: .83,
+      desc: 'Drones, robots, and AI planners inspect bridges, pipes, roads, substations, and water systems.',
+      cost: { energy: 58, water: 18, carbon: 8, compute: 58, materials: 26, budget: 26 },
+      reward: { engineering: 72, reliability: 16, trust: 9, wellbeing: 4, budget: 3 },
+      note: 'Great trust/reliability stabilizer.'
+    },
+    {
+      id: 'desalMembrane', bucket: 'Engineering', title: 'Desalination membrane and water recycling stack', duration: 2, chance: .76,
+      desc: 'AI-designed membranes, anti-fouling chemistry, and brine utilization for drought-resilient water.',
+      cost: { energy: 66, water: 22, carbon: 10, compute: 70, materials: 26, budget: 30 },
+      reward: { engineering: 78, science: 24, water: 84, trust: 5 },
+      note: 'Water dividend unlocks medicine and chemistry.'
+    },
+    {
+      id: 'disasterAI', bucket: 'Engineering', title: 'Disaster prediction and autonomous response', duration: 2, chance: .85,
+      desc: 'Forecast wildfire, flood, heat, pandemic logistics, and grid failures with autonomous response planning.',
+      cost: { energy: 52, water: 12, carbon: 7, compute: 62, materials: 14, budget: 25 },
+      reward: { engineering: 68, trust: 12, reliability: 14, wellbeing: 5, validation: 2 },
+      note: 'High legitimacy in volatile events.'
+    },
+    {
+      id: 'agBioreactors', bucket: 'Engineering', title: 'Agriculture and bioreactor optimization', duration: 2, chance: .82,
+      desc: 'Optimize indoor farming, fermentation, crop genetics, irrigation, soil carbon, and protein bioreactors.',
+      cost: { energy: 52, water: 28, carbon: 8, compute: 62, materials: 12, budget: 24 },
+      reward: { engineering: 58, medicine: 24, water: 26, wellbeing: 7, carbon: 12 },
+      note: 'Food security and water co-benefits.'
+    },
+    {
+      id: 'lunarHabitats', bucket: 'Engineering', title: 'Lunar polar prospecting and space habitats', duration: 4, chance: .55,
+      desc: 'Model lunar ice, autonomous mining, radiation shielding, habitat life support, and closed-loop industry.',
+      cost: { energy: 128, water: 36, carbon: 34, compute: 146, materials: 52, budget: 66 },
+      reward: { engineering: 148, science: 60, trust: 6, materials: 24 },
+      note: 'Frontier ambition; demands a strong resource base.'
+    },
+    {
+      id: 'oceanEnergy', bucket: 'Engineering', title: 'Ocean clean-energy islands and HVDC ships', duration: 3, chance: .63,
+      desc: 'Plan floating wind, wave power, ammonia/hydrogen shipping, and ocean data-center cooling loops.',
+      cost: { energy: 94, water: 32, carbon: 20, compute: 102, materials: 40, budget: 48 },
+      reward: { engineering: 112, science: 28, energy: 44, water: 18, clean: 4 },
+      note: 'Turns geography into additive abundance.'
+    },
+
+    // Stewardship / governance / safety / validation
+    {
+      id: 'evals', bucket: 'Stewardship', title: 'Automated evals, interpretability, and red-team sandbox', duration: 1, chance: .90,
+      desc: 'Stress-test frontier models, scientific claims, cyber risks, lab automation, and medical recommendations.',
+      cost: { energy: 36, water: 8, carbon: 5, compute: 46, materials: 6, budget: 18 },
+      reward: { stewardship: 58, trust: 9, validation: 12, reliability: 4 },
+      note: 'Improves success chance and public legitimacy.'
+    },
+    {
+      id: 'openScience', bucket: 'Stewardship', title: 'Open scientific benchmark commons', duration: 1, chance: .88,
+      desc: 'Shared datasets, reproducibility rails, model cards, and audit trails for public-interest discovery.',
+      cost: { energy: 30, water: 7, carbon: 4, compute: 38, materials: 4, budget: 16 },
+      reward: { stewardship: 50, science: 18, trust: 10, validation: 8, budget: 2 },
+      note: 'Small cost, large trust effect.'
+    },
+    {
+      id: 'benefitDividend', bucket: 'Stewardship', title: 'AI benefit dividend and transition support', duration: 1, chance: .92,
+      desc: 'Use AI gains to fund lower bills, job transitions, transit, repair shops, and local health deployment.',
+      cost: { budget: 34, compute: 20, energy: 16, carbon: 3, water: 5 },
+      reward: { stewardship: 62, trust: 16, wellbeing: 14, budget: -2 },
+      note: 'Stabilizes aggressive reprioritization.'
+    },
+    {
+      id: 'secureBiofoundry', bucket: 'Stewardship', title: 'Secure biofoundry and medical data trust', duration: 2, chance: .82,
+      desc: 'Privacy-preserving biomedical data, access controls, lab biosafety, and controlled release workflows.',
+      cost: { energy: 48, water: 14, carbon: 6, compute: 58, materials: 10, budget: 26 },
+      reward: { stewardship: 68, medicine: 28, trust: 11, validation: 10 },
+      note: 'Makes medicine acceleration safer.'
+    },
+    {
+      id: 'energyTransparency', bucket: 'Stewardship', title: 'Data-center transparency and siting compact', duration: 1, chance: .86,
+      desc: 'Public reporting, community benefits, water-risk screens, clean-power matching, and grid-impact review.',
+      cost: { budget: 20, compute: 22, energy: 14, carbon: 2, water: 4 },
+      reward: { stewardship: 52, trust: 14, reliability: 8, clean: 2 },
+      note: 'Protects legitimacy as capacity grows.'
+    }
+  ];
+
+  const events = [
+    { id: 'heatwave', tag: 'Climate', name: 'Regional heatwave and cooling spike', desc: 'Air conditioning and server cooling surge. Demand-response and cooling builds matter more this quarter.', delta: { energy: -64, water: -48 }, effects: { reliability: -6, trust: -2 }, weight: 1.0 },
+    { id: 'drought', tag: 'Water', name: 'Drought warning in data-center counties', desc: 'Water stress rises. Closed-loop cooling, reclaimed water, and desalination projects become politically valuable.', delta: { water: -92 }, effects: { trust: -3, wellbeing: -2 }, weight: 0.9 },
+    { id: 'chipCrunch', tag: 'Supply chain', name: 'Accelerator packaging bottleneck', desc: 'Advanced-packaging capacity tightens; compute and materials are scarcer until new supply comes online.', delta: { compute: -56, materials: -26 }, effects: {}, weight: 0.85 },
+    { id: 'optimizer', tag: 'Technology', name: 'Open-source optimizer breakthrough', desc: 'A scheduling and sparsity advance temporarily increases effective compute and permanently nudges efficiency.', delta: { compute: 42, energy: 18 }, effects: { efficiency: 4, trust: 2 }, weight: 0.95 },
+    { id: 'backlash', tag: 'Society', name: 'Austerity backlash goes viral', desc: 'People resist feeling that ordinary life is being cut while data centers expand. Benefit dividends and trust projects help.', delta: { budget: -18 }, effects: { trust: -8, wellbeing: -4 }, socialMultiplier: 1.35, weight: 0.7 },
+    { id: 'coolingContract', tag: 'Water', name: 'Municipal cooling-water partnership', desc: 'A reclaimed-water district offers a temporary water credit and favorable terms for heat reuse.', delta: { water: 62, budget: 10 }, effects: { trust: 3 }, weight: 0.75 },
+    { id: 'gridCongestion', tag: 'Grid', name: 'Interconnection queue congestion', desc: 'New loads wait for substations and transmission. Reliability dips unless grid builds have been prioritized.', delta: { energy: -74 }, effects: { reliability: -8 }, weight: 0.9 },
+    { id: 'collaboration', tag: 'Diplomacy', name: 'International science collaboration window', desc: 'Partner labs share compute, data, and funding for public-good science and medicine.', delta: { compute: 38, budget: 32 }, effects: { trust: 4, validation: 2 }, weight: 0.85 },
+    { id: 'fossilSpike', tag: 'Fuel', name: 'Fossil fuel price spike', desc: 'Transport and gas-linked supply costs rise. Regions with lower car and flight dependence are more resilient.', delta: { budget: -24, carbon: -24 }, effects: { wellbeing: -2 }, weight: 0.75 },
+    { id: 'batteryJump', tag: 'Materials', name: 'Battery supply chain jumps ahead', desc: 'Storage costs fall and critical materials arrive ahead of schedule.', delta: { materials: 34, energy: 34 }, effects: { reliability: 4 }, weight: 0.75 },
+    { id: 'publicHealthWin', tag: 'Medicine', name: 'Public health demand for AI rises', desc: 'A disease outbreak raises demand for medical AI; medicine wins gain extra trust this quarter.', delta: { budget: 16, compute: 16 }, effects: { trust: 2 }, medBonus: 1.15, weight: 0.65 },
+    { id: 'cyberScare', tag: 'Safety', name: 'Cybersecurity scare at a peer lab', desc: 'Regulators scrutinize autonomous labs and model deployment. Evals and transparency become essential.', delta: { budget: -8, compute: -12 }, effects: { trust: -6, validation: -2 }, weight: 0.6 },
+    { id: 'quiet', tag: 'System', name: 'Quiet quarter', desc: 'No major external shock. This is a good time to build buffers or launch ambitious programs.', delta: {}, effects: {}, weight: 0.55 }
+  ];
+
+  const defaultState = () => ({
+    version: 1,
+    turn: 1,
+    seed: 2187,
+    capacities: { ...BASE_CAPACITY },
+    spent: { ...EMPTY },
+    sliders: Object.fromEntries(sliders.map(s => [s.id, 12])),
+    mods: { efficiency: 0, clean: 0, validation: 0 },
+    stability: { trust: 72, wellbeing: 78, reliability: 74 },
+    scores: { science: 0, medicine: 0, engineering: 0, stewardship: 0, breakthroughs: 0, failures: 0 },
+    builds: [],
+    activeProjects: [],
+    completedProjectIds: [],
+    completedBuildIds: [],
+    event: { id: 'opening', tag: 'System', name: 'Opening allocation window', desc: 'You have one quarter to set initial trade-offs and launch projects. The first external shock arrives after you run the next quarter.', delta: {}, effects: {} },
+    filter: 'All',
+    log: ['Welcome. Set resource priorities, build additive capacity, then launch AI programs.'],
+    history: []
+  });
+
+  let state = loadState();
+
+  function loadState() {
+    try {
+      const saved = localStorage.getItem('computeCommonsState');
+      if (!saved) return defaultState();
+      const parsed = JSON.parse(saved);
+      if (!parsed || parsed.version !== 1) return defaultState();
+      // Handle any missing keys after future edits.
+      return { ...defaultState(), ...parsed, capacities: { ...BASE_CAPACITY, ...(parsed.capacities || {}) } };
+    } catch (e) { return defaultState(); }
+  }
+
+  function saveState(show = false) {
+    localStorage.setItem('computeCommonsState', JSON.stringify(state));
+    if (show) toast('Game saved locally in this browser.');
+  }
+
+  function clamp(x, lo = 0, hi = 100) { return Math.max(lo, Math.min(hi, x)); }
+  function round(x) { return Math.round((x + Number.EPSILON) * 10) / 10; }
+  function add(a, b) {
+    const out = { ...a };
+    for (const k of Object.keys(b || {})) out[k] = (out[k] || 0) + b[k];
+    return out;
+  }
+  function sub(a, b) {
+    const out = { ...a };
+    for (const k of Object.keys(b || {})) out[k] = (out[k] || 0) - b[k];
+    return out;
+  }
+  function scale(obj, m) {
+    const out = {};
+    for (const [k,v] of Object.entries(obj || {})) out[k] = v * m;
+    return out;
+  }
+  function nonZeroEntries(obj) { return Object.entries(obj || {}).filter(([,v]) => Math.abs(v) > 0.001); }
+
+  function rng() {
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    return state.seed / 4294967296;
+  }
+
+  function computeSavings() {
+    let res = { ...EMPTY };
+    let trust = 0, wellbeing = 0, reliability = 0;
+    let intensitySum = 0;
+    for (const s of sliders) {
+      const raw = (state.sliders[s.id] || 0) / 100;
+      const curved = Math.pow(raw, 0.88);
+      intensitySum += raw;
+      for (const [k, v] of Object.entries(s.max || {})) res[k] = (res[k] || 0) + v * curved;
+      wellbeing += (s.wellbeing || 0) * Math.pow(raw, 1.22);
+      trust += (s.trust || 0) * Math.pow(raw, 1.12);
+      reliability += (s.reliability || 0) * raw;
+    }
+    const avg = intensitySum / sliders.length * 100;
+    if (avg > 55) {
+      const penalty = Math.pow((avg - 55) / 45, 1.35);
+      trust -= penalty * 7;
+      wellbeing -= penalty * 9;
+    }
+    const eventMultiplier = state.event?.socialMultiplier || 1;
+    return { resources: res, social: { trust: trust * eventMultiplier, wellbeing: wellbeing * eventMultiplier, reliability }, avg };
+  }
+
+  function currentSupply() {
+    const savings = computeSavings().resources;
+    let supply = add(state.capacities, savings);
+    supply = add(supply, state.event?.delta || {});
+    const cleanFactor = clamp(state.mods.clean, -20, 60) / 100;
+    // Cleaner supply increases carbon headroom slightly because workloads draw less carbon-intensive electricity.
+    supply.carbon += state.capacities.energy * cleanFactor * 0.075;
+    return supply;
+  }
+
+  function availableResources() {
+    return sub(currentSupply(), state.spent);
+  }
+
+  function costAfterMods(cost) {
+    const eff = clamp(state.mods.efficiency, 0, 45) / 100;
+    const clean = clamp(state.mods.clean, -20, 70) / 100;
+    const out = { ...cost };
+    if ('energy' in out) out.energy *= (1 - eff * 0.45);
+    if ('compute' in out) out.compute *= (1 - eff * 0.62);
+    if ('water' in out) out.water *= (1 - eff * 0.18);
+    if ('carbon' in out) out.carbon *= (1 - Math.max(0, clean) * 0.58);
+    for (const k of Object.keys(out)) out[k] = Math.max(0, out[k]);
+    return out;
+  }
+
+  function canAfford(cost) {
+    const avail = availableResources();
+    return Object.entries(cost || {}).every(([k, v]) => (avail[k] || 0) + 0.0001 >= v);
+  }
+
+  function spend(cost) {
+    state.spent = add(state.spent, cost);
+  }
+
+  function applyEffect(effect, intensity = 1, context = {}) {
+    for (const [k, raw] of Object.entries(effect || {})) {
+      const v = raw * intensity;
+      if (k in RES) {
+        state.capacities[k] = Math.max(0, (state.capacities[k] || 0) + v);
+      } else if (['trust', 'wellbeing', 'reliability'].includes(k)) {
+        state.stability[k] = clamp((state.stability[k] || 0) + v, 0, 100);
+      } else if (['efficiency', 'clean', 'validation'].includes(k)) {
+        state.mods[k] = clamp((state.mods[k] || 0) + v, k === 'clean' ? -20 : 0, 80);
+      } else if (['science','medicine','engineering','stewardship'].includes(k)) {
+        state.scores[k] += v;
+      }
+    }
+    if (context.medBonus && effect?.medicine) state.scores.medicine += effect.medicine * (context.medBonus - 1) * intensity;
+  }
+
+  function pickEvent() {
+    const total = events.reduce((s,e) => s + e.weight, 0);
+    let r = rng() * total;
+    for (const e of events) {
+      r -= e.weight;
+      if (r <= 0) return JSON.parse(JSON.stringify(e));
+    }
+    return JSON.parse(JSON.stringify(events[events.length - 1]));
+  }
+
+  function queueBuild(id) {
+    const b = builds.find(x => x.id === id);
+    if (!b) return;
+    if (state.turn > MAX_TURNS) return;
+    const cost = b.cost;
+    if (!canAfford(cost)) { toast('Not enough available resources for that build this quarter.'); return; }
+    spend(cost);
+    state.builds.push({ id: b.id, remaining: b.duration, duration: b.duration, name: b.name });
+    log(`Started build: ${b.name} (${b.duration}Q).`);
+    saveState(); render();
+  }
+
+  function launchProject(id) {
+    const p = projects.find(x => x.id === id);
+    if (!p) return;
+    if (state.turn > MAX_TURNS) return;
+    if (state.completedProjectIds.includes(id) || state.activeProjects.some(x => x.id === id)) { toast('That program is already complete or in flight.'); return; }
+    const cost = costAfterMods(p.cost);
+    if (!canAfford(cost)) { toast('Not enough available resources for that AI program this quarter.'); return; }
+    spend(cost);
+    state.activeProjects.push({ id: p.id, remaining: p.duration, duration: p.duration, name: p.title, bucket: p.bucket });
+    log(`Launched AI program: ${p.title} (${p.duration}Q).`);
+    saveState(); render();
+  }
+
+  function completeBuild(item) {
+    const b = builds.find(x => x.id === item.id);
+    if (!b) return;
+    applyEffect(b.effect, 1);
+    state.completedBuildIds.push(b.id);
+    log(`Build completed: ${b.name}. Future capacity improved.`);
+  }
+
+  function completeProject(item) {
+    const p = projects.find(x => x.id === item.id);
+    if (!p) return;
+    const validationBonus = clamp(state.mods.validation, -20, 80) / 100;
+    const reliabilityBonus = (state.stability.reliability - 50) / 250;
+    const trustBonus = (state.stability.trust - 50) / 330;
+    const adjustedChance = clamp(p.chance + validationBonus * 0.18 + reliabilityBonus + trustBonus, 0.15, 0.96);
+    const success = rng() < adjustedChance;
+    const intensity = success ? 1 : 0.42;
+    const context = { medBonus: state.event?.medBonus || 1 };
+    applyEffect(p.reward, intensity, context);
+    state.scores.breakthroughs += success ? 1 : 0;
+    if (!success) state.scores.failures += 1;
+    state.completedProjectIds.push(p.id);
+    const verb = success ? 'Breakthrough landed' : 'Partial result';
+    log(`${verb}: ${p.title} (${Math.round(adjustedChance*100)}% odds).`);
+  }
+
+  function applyQuarterSocialEffects() {
+    const { social, avg } = computeSavings();
+    state.stability.trust = clamp(state.stability.trust + social.trust, 0, 100);
+    state.stability.wellbeing = clamp(state.stability.wellbeing + social.wellbeing, 0, 100);
+    state.stability.reliability = clamp(state.stability.reliability + social.reliability, 0, 100);
+
+    const avail = availableResources();
+    const overdrafts = Object.entries(avail).filter(([,v]) => v < -0.1);
+    if (overdrafts.length) {
+      const severity = overdrafts.reduce((s, [,v]) => s + Math.abs(v), 0) / 70;
+      state.stability.trust = clamp(state.stability.trust - 3 * severity, 0, 100);
+      state.stability.reliability = clamp(state.stability.reliability - 4 * severity, 0, 100);
+      log('Emergency resource overdraw hurt trust and reliability.');
+    }
+
+    if (avg > 70 && state.stability.wellbeing < 45) {
+      state.stability.trust = clamp(state.stability.trust - 5, 0, 100);
+      log('People are tired of deep cuts; public trust fell.');
+    }
+    if (state.stability.trust < 25) {
+      state.capacities.budget = Math.max(85, state.capacities.budget - 8);
+      log('Low trust slowed permitting and investment; recurring budget fell.');
+    }
+    if (state.stability.reliability < 30) {
+      state.capacities.energy = Math.max(250, state.capacities.energy - 14);
+      log('Grid instability reduced usable energy capacity.');
+    }
+  }
+
+  function runNextQuarter() {
+    if (state.turn > MAX_TURNS) { showEnd(); return; }
+    applyQuarterSocialEffects();
+
+    // Advance queues.
+    const stillBuilds = [];
+    for (const b of state.builds) {
+      b.remaining -= 1;
+      if (b.remaining <= 0) completeBuild(b); else stillBuilds.push(b);
+    }
+    state.builds = stillBuilds;
+
+    const stillProjects = [];
+    for (const p of state.activeProjects) {
+      p.remaining -= 1;
+      if (p.remaining <= 0) completeProject(p); else stillProjects.push(p);
+    }
+    state.activeProjects = stillProjects;
+
+    // New event and its immediate non-resource effects.
+    if (state.turn < MAX_TURNS) {
+      state.event = pickEvent();
+      applyEffect(state.event.effects, 1);
+      log(`World event: ${state.event.name}.`);
+    }
+
+    state.turn += 1;
+    state.spent = { ...EMPTY };
+    pushHistory();
+    saveState();
+    render();
+    if (state.turn > MAX_TURNS) showEnd(); else toast(`Quarter advanced. ${state.event.name}`);
+  }
+
+  function pushHistory() {
+    const avail = availableResources();
+    state.history.push({ turn: state.turn, resources: { ...avail }, stability: { ...state.stability }, score: calculateScore() });
+    if (state.history.length > 18) state.history.shift();
+  }
+
+  function calculateScore() {
+    const s = state.scores;
+    const stabilityScore = state.stability.trust * 1.6 + state.stability.wellbeing * 1.25 + state.stability.reliability * 1.25;
+    const impact = s.science * 1.05 + s.medicine * 1.25 + s.engineering * 1.08 + s.stewardship * 0.9 + s.breakthroughs * 36;
+    const penalty = s.failures * 10 + (state.stability.trust < 25 ? 80 : 0) + (state.stability.wellbeing < 25 ? 70 : 0) + (state.stability.reliability < 25 ? 70 : 0);
+    return Math.max(0, Math.round(impact + stabilityScore - penalty));
+  }
+
+  function strategicStyle() {
+    const avgCut = computeSavings().avg;
+    const additive = state.completedBuildIds.length + state.builds.length;
+    const clean = state.mods.clean;
+    const risky = state.completedBuildIds.includes('gasCCS') || state.builds.some(b => b.id === 'gasCCS');
+    if (risky && clean < 10) return 'Fossil sprint';
+    if (additive >= 6 && avgCut < 35) return 'Abundance buildout';
+    if (avgCut > 55 && additive < 3) return 'Austerity pivot';
+    if (state.mods.efficiency >= 18) return 'Efficiency-first';
+    if (state.scores.medicine > state.scores.science && state.scores.medicine > state.scores.engineering) return 'Health moonshot';
+    if (state.scores.engineering > state.scores.science && state.scores.engineering > state.scores.medicine) return 'Infrastructure moonshot';
+    return 'Balanced';
+  }
+
+  function formatCost(cost) {
+    return nonZeroEntries(cost).map(([k,v]) => `${RES[k]?.icon || ''} ${round(v)} ${RES[k]?.unit || k}`).join(' · ');
+  }
+
+  function effectBadges(effect) {
+    return nonZeroEntries(effect).map(([k, v]) => {
+      let label = k in RES ? `${RES[k].icon} ${v > 0 ? '+' : ''}${round(v)} ${RES[k].label}` : `${v > 0 ? '+' : ''}${round(v)} ${labelize(k)}`;
+      let cls = v >= 0 ? 'good' : 'bad';
+      return `<span class="badge ${cls}">${label}</span>`;
+    }).join('');
+  }
+
+  function labelize(k) {
+    return ({ trust: 'Trust', wellbeing: 'Wellbeing', reliability: 'Reliability', efficiency: 'Efficiency', clean: 'Clean supply', validation: 'Validation', science: 'Science', medicine: 'Medicine', engineering: 'Engineering', stewardship: 'Stewardship' })[k] || k;
+  }
+
+  function render() {
+    document.getElementById('turnLabel').textContent = state.turn > MAX_TURNS ? 'Complete' : `Q${state.turn} / ${MAX_TURNS}`;
+    const year = 2030 + Math.floor((state.turn - 1) / 4);
+    const quarter = ((state.turn - 1) % 4) + 1;
+    document.getElementById('yearLabel').textContent = state.turn > MAX_TURNS ? 'Final report' : `Year ${year}, quarter ${quarter}`;
+    document.getElementById('scoreLabel').textContent = calculateScore();
+    document.getElementById('breakthroughLabel').textContent = Math.round(state.scores.breakthroughs);
+    document.getElementById('styleLabel').textContent = strategicStyle();
+    document.getElementById('efficiencyPill').textContent = `AI efficiency +${Math.round(state.mods.efficiency)}%`;
+    document.getElementById('cleanPill').textContent = `Clean supply ${state.mods.clean >= 0 ? '+' : ''}${Math.round(state.mods.clean)}%`;
+    document.getElementById('validationPill').textContent = `Validation +${Math.round(state.mods.validation)}%`;
+
+    renderEvent();
+    renderResources();
+    renderStability();
+    renderSliders();
+    renderSavings();
+    renderBuilds();
+    renderProjectFilters();
+    renderProjects();
+    renderQueues();
+    renderImpacts();
+    renderDiagnosis();
+    renderIdeas();
+    drawHistory();
+  }
+
+  function renderEvent() {
+    document.getElementById('eventTag').textContent = state.event?.tag || 'System';
+    document.getElementById('eventName').textContent = state.event?.name || 'Quiet quarter';
+    document.getElementById('eventDesc').textContent = state.event?.desc || '';
+    const impacts = [];
+    for (const [k,v] of nonZeroEntries(state.event?.delta || {})) impacts.push(`<span class="badge ${v >= 0 ? 'good' : 'bad'}">${RES[k].icon} ${v > 0 ? '+' : ''}${round(v)} ${RES[k].label}</span>`);
+    for (const [k,v] of nonZeroEntries(state.event?.effects || {})) impacts.push(`<span class="badge ${v >= 0 ? 'good' : 'bad'}">${v > 0 ? '+' : ''}${round(v)} ${labelize(k)}</span>`);
+    if (!impacts.length) impacts.push('<span class="badge">No resource shock</span>');
+    document.getElementById('eventImpacts').innerHTML = impacts.join('');
+    document.getElementById('logBox').innerHTML = state.log.slice(-7).reverse().map(x => `<div>${escapeHtml(x)}</div>`).join('');
+  }
+
+  function renderResources() {
+    const grid = document.getElementById('resourceGrid');
+    const supply = currentSupply();
+    const avail = availableResources();
+    grid.innerHTML = Object.keys(RES).map(k => {
+      const meta = RES[k];
+      const total = Math.max(1, supply[k] || 0);
+      const a = avail[k] || 0;
+      const pct = clamp((a / total) * 100, 0, 100);
+      const danger = a < total * 0.18;
+      const warn = a < total * 0.38;
+      const color = danger ? 'var(--danger)' : warn ? 'var(--warn)' : meta.color;
+      return `<div class="resource">
+        <div class="resource-top"><div class="resource-name">${meta.icon} ${meta.label}</div><div class="resource-value">${round(a)} / ${round(total)} ${meta.unit}</div></div>
+        <div class="bar"><span style="width:${pct}%;background:${color}"></span></div>
+        <div class="resource-note">${meta.note}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStability() {
+    const pairs = [['trust','trustDial'], ['wellbeing','wellbeingDial'], ['reliability','reliabilityDial']];
+    for (const [k, id] of pairs) {
+      const v = Math.round(state.stability[k]);
+      const el = document.getElementById(id);
+      el.textContent = v;
+      const color = v < 30 ? 'var(--danger)' : v < 55 ? 'var(--warn)' : 'var(--accent)';
+      el.style.background = `conic-gradient(${color} ${v}%, rgba(255,255,255,.12) 0)`;
+      el.style.color = v < 55 ? '#08111f' : '#06101c';
+    }
+  }
+
+  function renderSliders() {
+    const list = document.getElementById('sliderList');
+    list.innerHTML = sliders.map(s => {
+      const value = state.sliders[s.id] || 0;
+      const one = scale(s.max, Math.pow(value/100, .88));
+      const badges = Object.entries(one).filter(([,v]) => Math.abs(v) > .4).map(([k,v]) => `<span class="badge ${v >= 0 ? 'good' : 'bad'}">${RES[k].icon} ${v >= 0 ? '+' : ''}${round(v)} ${RES[k].label}</span>`).join('');
+      return `<div class="slider-card">
+        <div class="slider-head"><div><strong>${s.name}</strong><span>${s.desc}</span></div><div class="slider-value">${value}%</div></div>
+        <input type="range" min="0" max="100" step="1" value="${value}" data-slider="${s.id}" aria-label="${escapeAttr(s.name)}" />
+        <div class="impact-row">${badges || '<span class="badge">No resources freed yet</span>'}</div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('input[type="range"]').forEach(input => {
+      input.addEventListener('input', e => {
+        state.sliders[e.target.dataset.slider] = Number(e.target.value);
+        saveState(); render();
+      });
+    });
+  }
+
+  function renderSavings() {
+    const { resources, social, avg } = computeSavings();
+    const grid = document.getElementById('savingsGrid');
+    grid.innerHTML = Object.keys(RES).map(k => `<div class="mini"><span>${RES[k].label}</span><strong>${resources[k] >= 0 ? '+' : ''}${round(resources[k] || 0)} ${RES[k].unit}</strong></div>`).join('');
+    const friction = Math.abs(social.trust) + Math.abs(social.wellbeing);
+    let label = 'Low: people barely notice the changes.';
+    if (friction > 4 || avg > 38) label = 'Medium: trade-offs are visible; compensate with benefits and transparency.';
+    if (friction > 9 || avg > 58) label = 'High: deep cuts risk backlash unless additive abundance and dividends arrive soon.';
+    document.getElementById('socialFrictionText').textContent = `${label} Next quarter: trust ${social.trust >= 0 ? '+' : ''}${round(social.trust)}, wellbeing ${social.wellbeing >= 0 ? '+' : ''}${round(social.wellbeing)}, reliability ${social.reliability >= 0 ? '+' : ''}${round(social.reliability)}.`;
+  }
+
+  function renderBuilds() {
+    const grid = document.getElementById('buildGrid');
+    grid.innerHTML = builds.map(b => {
+      const disabled = !canAfford(b.cost) || state.turn > MAX_TURNS;
+      const inQueue = state.builds.some(x => x.id === b.id);
+      const completed = state.completedBuildIds.includes(b.id);
+      return `<div class="option-card additive">
+        <div class="option-head"><h3 class="option-title">${b.name}</h3><span class="badge">${b.duration}Q</span></div>
+        <p class="option-desc">${b.desc}</p>
+        <div class="costs"><span class="badge warn">Cost: ${formatCost(b.cost)}</span></div>
+        <div class="rewards">${effectBadges(b.effect)}</div>
+        <div class="fine">${b.note}</div>
+        <div class="option-footer"><span class="badge">${b.type}</span><button class="btn small primary" data-build="${b.id}" ${disabled ? 'disabled' : ''}>${completed ? 'Build again' : inQueue ? 'Add another' : 'Start build'}</button></div>
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('[data-build]').forEach(btn => btn.addEventListener('click', () => queueBuild(btn.dataset.build)));
+  }
+
+  function renderProjectFilters() {
+    const buckets = ['All', 'Science', 'Medicine', 'Engineering', 'Stewardship'];
+    const box = document.getElementById('projectFilters');
+    box.innerHTML = buckets.map(b => `<button class="filter-btn ${state.filter === b ? 'active' : ''}" data-filter="${b}">${b}</button>`).join('');
+    box.querySelectorAll('[data-filter]').forEach(btn => btn.addEventListener('click', () => { state.filter = btn.dataset.filter; saveState(); render(); }));
+  }
+
+  function renderProjects() {
+    const grid = document.getElementById('projectGrid');
+    const rows = projects.filter(p => state.filter === 'All' || p.bucket === state.filter);
+    grid.innerHTML = rows.map(p => {
+      const cost = costAfterMods(p.cost);
+      const disabled = !canAfford(cost) || state.completedProjectIds.includes(p.id) || state.activeProjects.some(x => x.id === p.id) || state.turn > MAX_TURNS;
+      const cls = p.bucket.toLowerCase();
+      const validationBonus = clamp(state.mods.validation, -20, 80) / 100;
+      const adjustedChance = clamp(p.chance + validationBonus * 0.18 + (state.stability.reliability - 50) / 250 + (state.stability.trust - 50) / 330, 0.15, 0.96);
+      const complete = state.completedProjectIds.includes(p.id);
+      const active = state.activeProjects.some(x => x.id === p.id);
+      return `<div class="option-card ${cls}">
+        <div class="option-head"><h3 class="option-title">${p.title}</h3><span class="badge ${cls}">${p.bucket}</span></div>
+        <p class="option-desc">${p.desc}</p>
+        <div class="costs"><span class="badge warn">Cost: ${formatCost(cost)}</span></div>
+        <div class="rewards">${effectBadges(p.reward)}</div>
+        <div class="fine">Landing chance: ${Math.round(adjustedChance * 100)}%. ${p.note}</div>
+        <div class="option-footer"><span class="badge">${p.duration}Q program</span><button class="btn small primary" data-project="${p.id}" ${disabled ? 'disabled' : ''}>${complete ? 'Complete' : active ? 'In flight' : 'Launch'}</button></div>
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('[data-project]').forEach(btn => btn.addEventListener('click', () => launchProject(btn.dataset.project)));
+  }
+
+  function renderQueues() {
+    const bq = document.getElementById('buildQueue');
+    bq.innerHTML = state.builds.length ? state.builds.map(item => {
+      const pct = ((item.duration - item.remaining) / item.duration) * 100;
+      return `<div class="queue-item"><strong>${item.name}</strong><span>${item.remaining} quarter(s) remaining</span><div class="progress"><span style="width:${pct}%"></span></div></div>`;
+    }).join('') : '<p class="fine">No additive builds in progress.</p>';
+
+    const pq = document.getElementById('projectQueue');
+    pq.innerHTML = state.activeProjects.length ? state.activeProjects.map(item => {
+      const pct = ((item.duration - item.remaining) / item.duration) * 100;
+      return `<div class="queue-item"><strong>${item.name}</strong><span>${item.bucket} · ${item.remaining} quarter(s) remaining</span><div class="progress"><span style="width:${pct}%"></span></div></div>`;
+    }).join('') : '<p class="fine">No AI programs in flight.</p>';
+  }
+
+  function renderImpacts() {
+    const box = document.getElementById('impactGrid');
+    const s = state.scores;
+    const rows = [
+      ['Science', s.science, 'Physics, chemistry, materials, climate, fundamental discovery'],
+      ['Medicine', s.medicine, 'Cancer, genetics, diagnostics, antimicrobial resistance, neuro, longevity'],
+      ['Engineering', s.engineering, 'Grid, infrastructure, space, construction, water, disaster response'],
+      ['Stewardship', s.stewardship, 'Evals, transparency, equity, validation, secure labs']
+    ];
+    box.innerHTML = rows.map(([name, val, desc]) => `<div class="mini"><span>${name}</span><strong>${round(val)} pts</strong><p class="fine" style="margin:5px 0 0;">${desc}</p></div>`).join('');
+  }
+
+  function renderDiagnosis() {
+    const avail = availableResources();
+    const low = Object.entries(avail).sort((a,b) => a[1] - b[1]).slice(0,2).map(([k]) => RES[k].label).join(' and ');
+    const style = strategicStyle();
+    let text = `Your current strategy reads as <strong>${style}</strong>. The tightest near-term bottlenecks are <strong>${low}</strong>. `;
+    if (state.stability.trust < 45) text += 'Public legitimacy is fragile; consider transparency, benefit dividends, visible medical wins, or community heat/water benefits. ';
+    if (state.stability.reliability < 45) text += 'Grid reliability is weak; transmission, grid AI, storage, geothermal, or firm clean power would reduce project risk. ';
+    if ((avail.water || 0) < currentSupply().water * .30) text += 'Water is constraining lab work; closed-loop cooling, reclaimed water, and desalination membranes can unlock more programs. ';
+    if ((avail.compute || 0) < currentSupply().compute * .30) text += 'Compute is tight; efficiency research and accelerator leasing can boost throughput. ';
+    if (state.mods.efficiency < 10) text += 'Efficiency investments compound because they cut future AI program costs. ';
+    if (state.turn > MAX_TURNS - 3) text += 'Endgame: prioritize short-duration projects and stability boosts that can complete before the final report.';
+    document.getElementById('diagnosisText').innerHTML = text;
+  }
+
+  function renderIdeas() {
+    const cloud = document.getElementById('ideaCloud');
+    const ideas = projects.map(p => p.title).concat(builds.map(b => b.name));
+    cloud.innerHTML = ideas.map(x => `<span>${escapeHtml(x)}</span>`).join('');
+  }
+
+  function drawHistory() {
+    const canvas = document.getElementById('historyCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    for (let i=1;i<5;i++) {
+      const y = (h-34) * i / 5 + 12;
+      ctx.beginPath(); ctx.moveTo(42, y); ctx.lineTo(w-16, y); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(239,247,255,0.78)';
+    ctx.font = '13px system-ui, sans-serif';
+    ctx.fillText('Resource availability trend', 16, 22);
+    const hist = state.history.length ? state.history : [{ turn: state.turn, resources: availableResources() }];
+    const keys = ['energy','water','carbon','compute','materials','budget'];
+    const maxVal = Math.max(100, ...hist.flatMap(p => keys.map(k => Math.max(0,p.resources[k] || 0))));
+    const left = 42, right = w - 18, top = 38, bottom = h - 28;
+    keys.forEach((k, idx) => {
+      ctx.strokeStyle = RES[k].color;
+      ctx.globalAlpha = 0.83;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      hist.forEach((p, i) => {
+        const x = hist.length === 1 ? left : left + (right-left) * i / (hist.length - 1);
+        const y = bottom - (Math.max(0,p.resources[k] || 0) / maxVal) * (bottom - top);
+        if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+    let lx = 16, ly = h - 10;
+    keys.forEach(k => {
+      ctx.fillStyle = RES[k].color;
+      ctx.fillRect(lx, ly-8, 10, 10);
+      ctx.fillStyle = 'rgba(239,247,255,0.78)';
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.fillText(RES[k].label, lx+14, ly+1);
+      lx += Math.min(190, 42 + RES[k].label.length * 7);
+    });
+  }
+
+  function showHelp() {
+    document.getElementById('modalContent').innerHTML = `<h2>How to play</h2>
+      <p><strong>Goal:</strong> maximize beneficial AI value across science, medicine, engineering, and stewardship over ${MAX_TURNS} quarters.</p>
+      <p><strong>1. Reprioritize consumption.</strong> Sliders free up resources immediately each quarter. Transportation, HVAC, industry, and device recycling matter more than streaming, but deep cuts can reduce wellbeing and trust.</p>
+      <p><strong>2. Add resources.</strong> Build clean power, firm power, transmission, cooling, water reuse, chips, and efficiency labs. These are delayed but increase future capacity.</p>
+      <p><strong>3. Launch AI programs.</strong> Programs spend current-quarter resources and finish later. Success odds improve with reliability, trust, and validation. Even partial results produce learning.</p>
+      <p><strong>4. Keep the commons intact.</strong> If trust, wellbeing, or reliability collapse, your score suffers and resource capacity can deteriorate.</p>
+      <div class="pillrow"><button class="btn primary" onclick="document.getElementById('modalBackdrop').classList.remove('active')">Start playing</button></div>`;
+    document.getElementById('modalBackdrop').classList.add('active');
+  }
+
+  function showEnd() {
+    const score = calculateScore();
+    const s = state.scores;
+    let title = 'Balanced Acceleration Steward';
+    if (score > 1550) title = 'Abundance Architect';
+    else if (score > 1200) title = 'Frontier Systems Builder';
+    else if (score < 650) title = 'Bottlenecked Prototype State';
+    const strongest = [['Science', s.science], ['Medicine', s.medicine], ['Engineering', s.engineering], ['Stewardship', s.stewardship]].sort((a,b)=>b[1]-a[1])[0][0];
+    document.getElementById('modalContent').innerHTML = `<h2>Final report: ${title}</h2>
+      <p>Your strategy produced <strong>${score}</strong> beneficial AI value. Your strongest impact bucket was <strong>${strongest}</strong>. The portfolio completed ${Math.round(s.breakthroughs)} full breakthroughs and ${Math.round(s.failures)} partial programs.</p>
+      <div class="end-grid">
+        <div class="end-stat"><span>Science</span><strong>${round(s.science)}</strong></div>
+        <div class="end-stat"><span>Medicine</span><strong>${round(s.medicine)}</strong></div>
+        <div class="end-stat"><span>Engineering</span><strong>${round(s.engineering)}</strong></div>
+        <div class="end-stat"><span>Stewardship</span><strong>${round(s.stewardship)}</strong></div>
+        <div class="end-stat"><span>Trust</span><strong>${round(state.stability.trust)}</strong></div>
+        <div class="end-stat"><span>Wellbeing</span><strong>${round(state.stability.wellbeing)}</strong></div>
+        <div class="end-stat"><span>Reliability</span><strong>${round(state.stability.reliability)}</strong></div>
+        <div class="end-stat"><span>Style</span><strong style="font-size:1.05rem">${strategicStyle()}</strong></div>
+      </div>
+      <p>${finalAdvice()}</p>
+      <div class="pillrow"><button class="btn primary" id="playAgainBtn">Play again</button><button class="btn" onclick="document.getElementById('modalBackdrop').classList.remove('active')">Review board</button></div>`;
+    document.getElementById('modalBackdrop').classList.add('active');
+    setTimeout(() => {
+      const btn = document.getElementById('playAgainBtn');
+      if (btn) btn.addEventListener('click', resetGame);
+    }, 0);
+  }
+
+  function finalAdvice() {
+    const av = availableResources();
+    const bottleneck = Object.entries(av).sort((a,b)=>a[1]-b[1])[0][0];
+    if (state.stability.trust < 45) return 'The main lesson: public legitimacy became the limiting reagent. Pair future AI expansion with transparency, local benefits, and visible medical or infrastructure wins.';
+    if (state.stability.reliability < 45) return 'The main lesson: the grid became the limiting reagent. More transmission, storage, firm clean power, and demand orchestration would make future acceleration safer.';
+    if (bottleneck === 'water') return 'The main lesson: water constrained your acceleration path. Closed-loop cooling, reclaimed water, and siting discipline should come earlier.';
+    if (bottleneck === 'compute') return 'The main lesson: compute scarcity limited scientific throughput. Efficiency labs and accelerator supply would compound earlier.';
+    return 'The main lesson: a resilient AI acceleration path mixes modest reprioritization with additive supply, efficiency, validation, and public-good outputs.';
+  }
+
+  function resetGame() {
+    state = defaultState();
+    pushHistory();
+    saveState();
+    document.getElementById('modalBackdrop').classList.remove('active');
+    render();
+    toast('New game started.');
+  }
+
+  function log(msg) {
+    state.log.push(msg);
+    if (state.log.length > 70) state.log.shift();
+  }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(tab + 'Tab').classList.add('active');
+    });
+  });
+
+  document.getElementById('nextTurnBtn').addEventListener('click', runNextQuarter);
+  document.getElementById('saveBtn').addEventListener('click', () => saveState(true));
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('modalContent').innerHTML = `<h2>Reset game?</h2><p>This clears your local saved game and starts over.</p><div class="pillrow"><button class="btn danger" id="confirmResetBtn">Reset</button><button class="btn" onclick="document.getElementById('modalBackdrop').classList.remove('active')">Cancel</button></div>`;
+    document.getElementById('modalBackdrop').classList.add('active');
+    setTimeout(() => document.getElementById('confirmResetBtn').addEventListener('click', resetGame), 0);
+  });
+  document.getElementById('helpBtn').addEventListener('click', showHelp);
+  document.getElementById('modalBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modalBackdrop') e.currentTarget.classList.remove('active');
+  });
+
+  // Initialize history only once for new games.
+  if (!state.history || state.history.length === 0) pushHistory();
+  render();
+})();
+</script>
+</body>
+</html>
