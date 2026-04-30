@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Omnidirectional Multi-Touch Demo</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050508;
+            overflow: hidden;
+            /* CRITICAL: Prevents browser zooming, scrolling, and swipe gestures */
+            touch-action: none; 
+            font-family: sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* A subtle overlay to show it's a demo, fades out after interaction */
+        #hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+            text-align: center;
+            transition: opacity 1s ease-out;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hint">Touch the surface</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const hint = document.getElementById('hint');
+
+        let width, height;
+        
+        // State variables
+        const activeTouches = new Map(); // Tracks current fingers on screen
+        const particles = [];            // Visual dust/trails
+        const ripples = [];              // Expanding rings on initial touch
+        const pucks = [];                // Physics objects to interact with
+
+        // Configuration
+        const NUM_PUCKS = 8;
+        const PUCK_RADIUS = 40;
+        const FRICTION = 0.98;
+
+        // Resize handler
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Class Definitions ---
+
+        class Puck {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.radius = PUCK_RADIUS + Math.random() * 20; // Varied sizes
+                this.baseColor = `hsl(${Math.random() * 360}, 60%, 50%)`;
+                this.isDragging = false;
+                this.touchId = null;
+                this.offsetX = 0;
+                this.offsetY = 0;
+            }
+
+            update() {
+                if (!this.isDragging) {
+                    // Apply physics if not being held
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vx *= FRICTION;
+                    this.vy *= FRICTION;
+
+                    // Wall collisions
+                    if (this.x - this.radius < 0) { this.x = this.radius; this.vx *= -1; }
+                    if (this.x + this.radius > width) { this.x = width - this.radius; this.vx *= -1; }
+                    if (this.y - this.radius < 0) { this.y = this.radius; this.vy *= -1; }
+                    if (this.y + this.radius > height) { this.y = height - this.radius; this.vy *= -1; }
+                }
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                // Glow effect
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.baseColor;
+                ctx.fillStyle = this.isDragging ? '#ffffff' : this.baseColor;
+                ctx.fill();
+                
+                // Inner ring to make it look like a physical object
+                ctx.shadowBlur = 0;
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.stroke();
+
+                // Center dot
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 1.0;
+                this.decay = 0.01 + Math.random() * 0.02;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        class Ripple {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = 10;
+                this.life = 1.0;
+                this.color = color;
+            }
+            update() {
+                this.radius += 5;
+                this.life -= 0.03;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- Initialization ---
+
+        function initPucks() {
+            for (let i = 0; i < NUM_PUCKS; i++) {
+                pucks.push(new Puck(
+                    Math.random() * (width - 100) + 50,
+                    Math.random() * (height - 100) + 50
+                ));
+            }
+        }
+        initPucks();
+
+        // --- Interaction Logic ---
+
+        // Assign a distinct color based on touch ID
+        function getTouchColor(id) {
+            // Using golden ratio to space out hues nicely
+            const hue = (id * 137.5) % 360; 
+            return `hsl(${hue}, 80%, 60%)`;
+        }
+
+        function handleStart(id, x, y) {
+            hint.style.opacity = '0'; // Hide hint text
+            const color = getTouchColor(typeof id === 'number' ? id : 1);
+            
+            // 1. Create a ripple
+            ripples.push(new Ripple(x, y, color));
+
+            // 2. Check if we grabbed a puck
+            let grabbedPuck = null;
+            for (let i = pucks.length - 1; i >= 0; i--) { // Reverse loop to grab top-most
+                const p = pucks[i];
+                if (!p.isDragging) {
+                    const dist = Math.hypot(p.x - x, p.y - y);
+                    if (dist < p.radius + 20) { // Slightly larger grab radius
+                        p.isDragging = true;
+                        p.touchId = id;
+                        p.offsetX = p.x - x;
+                        p.offsetY = p.y - y;
+                        grabbedPuck = p;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Register touch
+            activeTouches.set(id, { x, y, lastX: x, lastY: y, color, puck: grabbedPuck });
+        }
+
+        function handleMove(id, x, y) {
+            const touch = activeTouches.get(id);
+            if (!touch) return;
+
+            touch.lastX = touch.x;
+            touch.lastY = touch.y;
+            touch.x = x;
+            touch.y = y;
+
+            // Move grabbed puck
+            if (touch.puck) {
+                const p = touch.puck;
+                p.x = x + p.offsetX;
+                p.y = y + p.offsetY;
+                // Calculate velocity for when released
+                p.vx = x - touch.lastX;
+                p.vy = y - touch.lastY;
+            } else {
+                // Emit particles if dragging on empty space
+                if (Math.random() > 0.5) {
+                    particles.push(new Particle(x, y, touch.color));
+                }
+            }
+        }
+
+        function handleEnd(id) {
+            const touch = activeTouches.get(id);
+            if (touch) {
+                // Release puck
+                if (touch.puck) {
+                    touch.puck.isDragging = false;
+                    touch.puck.touchId = null;
+                }
+                activeTouches.delete(id);
+            }
+        }
+
+        // --- Event Listeners ---
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent scrolling/zooming
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                handleStart(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                handleMove(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                handleEnd(e.changedTouches[i].identifier);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                handleEnd(e.changedTouches[i].identifier);
+            }
+        }, { passive: false });
+
+        // Mouse fallback for testing on non-touch screens
+        let isMouseDown = false;
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            handleStart('mouse', e.clientX, e.clientY);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isMouseDown) handleMove('mouse', e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => {
+            if (isMouseDown) {
+                isMouseDown = false;
+                handleEnd('mouse');
+            }
+        });
+
+        // --- Physics & Render Loop ---
+
+        function resolvePuckCollisions() {
+            for (let i = 0; i < pucks.length; i++) {
+                for (let j = i + 1; j < pucks.length; j++) {
+                    const p1 = pucks[i];
+                    const p2 = pucks[j];
+                    
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distance = Math.hypot(dx, dy);
+                    const minDistance = p1.radius + p2.radius;
+
+                    if (distance < minDistance) {
+                        // They are colliding. Push them apart.
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDistance - distance;
+                        
+                        // Push factor
+                        const force = 0.5;
+                        const pushX = Math.cos(angle) * overlap * force;
+                        const pushY = Math.sin(angle) * overlap * force;
+
+                        if (!p1.isDragging) { p1.x -= pushX; p1.y -= pushY; p1.vx -= pushX*0.2; p1.vy -= pushY*0.2; }
+                        if (!p2.isDragging) { p2.x += pushX; p2.y += pushY; p2.vx += pushX*0.2; p2.vy += pushY*0.2; }
+                    }
+                }
+            }
+        }
+
+        function drawConnections() {
+            const touchArray = Array.from(activeTouches.values());
+            
+            // Draw lines between active touches to show collaboration
+            for (let i = 0; i < touchArray.length; i++) {
+                for (let j = i + 1; j < touchArray.length; j++) {
+                    const t1 = touchArray[i];
+                    const t2 = touchArray[j];
+                    
+                    const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+                    const maxDist = 400; // Only connect if relatively close
+                    
+                    if (dist < maxDist) {
+                        const alpha = 1 - (dist / maxDist);
+                        
+                        // Create gradient line between the two touch points
+                        const grad = ctx.createLinearGradient(t1.x, t1.y, t2.x, t2.y);
+                        grad.addColorStop(0, t1.color);
+                        grad.addColorStop(1, t2.color);
+
+                        ctx.beginPath();
+                        ctx.moveTo(t1.x, t1.y);
+                        ctx.lineTo(t2.x, t2.y);
+                        ctx.strokeStyle = grad;
+                        ctx.lineWidth = 2;
+                        ctx.globalAlpha = alpha * 0.6;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1.0;
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            // Dark background with slight transparency for motion trails
+            ctx.fillStyle = 'rgba(5, 5, 8, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Update & Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            // Update & Draw Ripples
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].update();
+                ripples[i].draw(ctx);
+                if (ripples[i].life <= 0) ripples.splice(i, 1);
+            }
+
+            // Physics step for Pucks
+            resolvePuckCollisions();
+            for (const p of pucks) {
+                p.update();
+                p.draw(ctx);
+            }
+
+            // Draw multi-user web/connections
+            drawConnections();
+
+            // Draw active touch points (glow rings underneath fingers)
+            activeTouches.forEach((touch) => {
+                ctx.beginPath();
+                ctx.arc(touch.x, touch.y, 25, 0, Math.PI * 2);
+                ctx.strokeStyle = touch.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Inner solid core
+                ctx.beginPath();
+                ctx.arc(touch.x, touch.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = touch.color;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Start loop
+        animate();
+
+    </script>
+</body>
+</html>
